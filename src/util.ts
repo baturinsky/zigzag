@@ -1,5 +1,3 @@
-
-export type Vec2 = [number, number]
 export type RGBA = [number, number, number, number]
 
 export let seed = 1;
@@ -18,17 +16,11 @@ export const
   },
   min = <T>(a: T[], f: (v: T) => number) => a[minInd(a, f)],
   listSum = <T>(a: T[], f = (a: any) => a) => a.reduce((q, p) => q + f(p), 0),
-  sum = (a: Vec2, b: Vec2, m = 1) => [a[0] + b[0] * m, a[1] + b[1] * m] as Vec2,
-  sub = (a: Vec2, b: Vec2) => [a[0] - b[0], a[1] - b[1]] as Vec2,
-  dist = (a: Vec2, b: Vec2) => a && b && len(sub(a, b)),
   scale = <T extends number[]>(a: T, m: number) => a.map(v => v * m) as T,
-  muls = (a: Vec2, b: Vec2) => [a[0] * b[0], a[1] * b[1]] as Vec2,
-  vecTween = (a: Vec2, b: Vec2, m: number) => [a[0] * (1 - m) + b[0] * m, a[1] * (1 - m) + b[1] * m] as Vec2,
   numTween = (a: number, b: number, m: number) => a * (1 - m) + b * m,
   round = <T extends number[]>(a: T) => a.map(v => ~~(v + .5)) as T,
   floor = (n: number) => ~~n - (n < 0 ? 1 : 0),
   fixed = (n: number) => ~~(n * 100) / 100,
-  len = (a: Vec2) => (a[0] ** 2 + a[1] ** 2) ** .5,
   debounce = (callback: Function, dur = 300) => {
     let timeoutId: any;
     return () => {
@@ -110,9 +102,12 @@ export const
 
   rng = (n?: number) => {
     return n == -1 ? seed : n == undefined ? rngi(1e9) / 1e9 : rngi(n)
-  }
+  },
 
-  ;
+  mod = (n: number, m: number) => ((n % m) + m) % m
+
+
+;
 
 
 
