@@ -104,7 +104,7 @@ export class Beam extends EngineObject {
     for (let r of raycast) {
       let o = r.object;
       if (o instanceof Mortal) {
-        o.hitBy(this, target.nearestPointTo(gun.pos))
+        o.hit(target.nearestPointTo(gun.pos), this.getDamage())
       }
     }
 
@@ -211,7 +211,7 @@ export class Missile extends Box2dObject {
       if (this.gun.aoe) {
         this.explode()
       } else {
-        other.hitBy(this, other.nearestPointTo(this.gun.pos))
+        other.hit(other.nearestPointTo(this.gun.pos), this.getDamage())
         this.destroy()
       }
 
@@ -231,7 +231,7 @@ export class Missile extends Box2dObject {
     engineObjectsCallback(this.pos, this.gun.aoe, (other) => {
       let aoe = this.gun.aoe;
       if (other instanceof Mortal)
-        other.hitBy(this, other.nearestPointTo(this.gun.pos))
+        other.hit(other.nearestPointTo(this.gun.pos), this.getDamage())
       let tl = new TemporaryLight(this.pos, aoe * 2, .2)
       tl.color = rgb(1, 1, 1);
       let e = particleEffect("explosion", this.pos, { scale: aoe / 2.5 }) as ParticleEmitter;

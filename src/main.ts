@@ -1,8 +1,9 @@
-import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED } from 'littlejsengine';
+import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED, UISystemPlugin, uiSystem, Sound, canvasClearColor, UIObject, UIText, CLEAR_BLACK, UIButton } from 'littlejsengine';
 
 import { tile1, tile2 } from './engine';
 import { Car } from './car';
 import { Chort, chorts } from './chort';
+import { initUI } from './ui';
 
 // each tile in tiles.png has a 1 pixel border, which stops texture bleeding
 setTileDefaultPadding(1);
@@ -10,9 +11,10 @@ export let car: Car, groundObject: Box2dStaticObject;
 
 
 async function gameInit() {
+  initUI()
 
   //mainCanvasSize.scale(getCanvasPixelRatio())
-  new LightSystemPlugin(vec2(1024, 1024), rgb(.05, .05, .05))
+  new LightSystemPlugin(vec2(1024, 1024), rgb(.2, .2, .2))
   lightSystem.shadows = true;
 
   setCameraScale(16)
@@ -82,7 +84,7 @@ function addWood() {
   }
 }
 
-function addChorts() {
+function add100Chorts() {
   for (let i = 100; i--;) {
     //new Chort(vec2(rand(-50, 50), rand(-50, 50)));
     addChort()
@@ -90,6 +92,6 @@ function addChorts() {
 }
 
 function addChort() {
-  if (chorts.size < 100 && rand(10)<1)
+  if (chorts.size < 100 && rand(10) < 1)
     new Chort(vec2().setAngle(rand(PI * 2), 30).add(car.pos));
 }

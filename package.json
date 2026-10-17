@@ -13,6 +13,6 @@
   },
   "dependencies": {
     "box2d": "^1.0.0",
-    "littlejsengine": "^1.27"
+    "littlejsengine": "^1.27.2"
   }
 }
