@@ -1,4 +1,4 @@
-import { UIButton, vec2, UIObject, BLACK, CLEAR_BLACK, UISystemPlugin, uiSystem, Sound, setCanvasClearColor, hsl, UIText } from "littlejsengine";
+import { UIButton, vec2, UIObject, BLACK, CLEAR_BLACK, UISystemPlugin, uiSystem, Sound, setCanvasClearColor, hsl, UIText, drawCircle, RED, mainCanvasSize } from "littlejsengine";
 
 let uiRoot: UIObject, uiMenu: UIObject;
 
@@ -17,7 +17,20 @@ function addButtonToggle() {
   buttonToggle.onClick = () => {
     uiMenu.visible = !uiMenu.visible
   }
+}
 
+class Radar extends UIObject {
+  constructor() {
+    super(vec2(0,0), vec2(100,100))
+    this.anchor = vec2(1, -1);
+  }
+
+  
+  render(): void {
+    const radarSize = 3;
+    const pos = vec2(mainCanvasSize.x - radarSize/2 - 10, radarSize/2 + 10);
+    drawCircle(vec2(10,10), radarSize, RED)
+  }
 }
 
 export function initUI() {
@@ -35,4 +48,5 @@ export function initUI() {
   uiMenu.visible = false;
 
   addButtonToggle()
+  //new Radar()
 }

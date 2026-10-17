@@ -1,4 +1,4 @@
-import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED, UISystemPlugin, uiSystem, Sound, canvasClearColor, UIObject, UIText, CLEAR_BLACK, UIButton } from 'littlejsengine';
+import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED, UISystemPlugin, uiSystem, Sound, canvasClearColor, UIObject, UIText, CLEAR_BLACK, UIButton, drawCircle } from 'littlejsengine';
 
 import { tile1, tile2 } from './engine';
 import { Car } from './car';
@@ -62,6 +62,18 @@ function gameRender() {
 function gameRenderPost() {
   // called after objects are rendered
   // draw effects or hud that appear above all objects
+  const radarSize = 200;
+  const pos = vec2(mainCanvasSize.x - radarSize / 2 - 20, radarSize / 2 + 20);
+  drawCircle(pos, radarSize, rgb(0, 0, 0, .1), 1, rgb(1, 1, 1, 1), false, true);
+    drawCircle(pos, 10, rgb(0, 0, 0, .1), 1, rgb(1, 1, 1, .2), false, true);
+  let t = Date.now()
+  for (let c of chorts) {
+    if (c.life > 0) {
+      let p = c.pos.subtract(cameraPos);
+      p.y = -p.y;
+      drawRect(pos.add(p.scale(.2)), vec2(4), rgb(1, 0, 0, .2), 0, false, true)
+    }
+  }
 }
 
 engineInit(gameInit, gameUpdate, gameUpdatePost, gameRender, gameRenderPost, ['tiles.webp']);

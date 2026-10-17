@@ -1,8 +1,10 @@
-import { Box2dObject, EngineObject, Vector2, vec2, rand, PI, Light, RED } from 'littlejsengine';
+import { Box2dObject, EngineObject, Vector2, vec2, rand, PI, Light, RED, cameraPos } from 'littlejsengine';
 import { tile1, angleDiff } from './engine';
 import { car } from './main';
 import { loop } from './util';
 import { Mortal } from './mortal';
+import { Gore } from './gore';
+import { sounds } from './sound';
 
 
 export let chorts = new Set<Chort>()
@@ -57,9 +59,12 @@ export class Chort extends Mortal {
 
     for (let i of [0, 1]) {
       let claw = this.claws[i]
-      if (claw)
+      if (claw) {
         (claw.localPos as Vector2).y = Math.sin(this.getAliveTime() * 9 + PI * i) ** 3 * .1
+      }
     }
+
+    //if(rand()<.01 && this.pos.distance(cameraPos)<20)      sounds.beeBuzz.play(this.pos)
 
     super.update()
 
@@ -80,12 +85,19 @@ export class Chort extends Mortal {
       eye.destroy()
   }
 
- 
+
   hit(hitPos: Vector2, _damage?: number) {
     let damage = super.hit(hitPos, _damage);
     loop(2, i => {
-      if (this.claws[i] && rand(0, this.maxLife) < damage) {
-        this.claws[i].destroy()
+      let claw = this.claws[i]
+      if (claw && rand(0, this.maxLife) < damage) {
+
+        setTimeout(() => {
+          new Gore(claw.pos, claw.angle)
+        }, 0);
+
+
+        claw.destroy()
         delete this.claws[i];
       }
     })

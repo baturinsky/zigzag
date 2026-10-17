@@ -5,6 +5,7 @@ import { Mortal } from "./mortal";
 import { TrailMaker } from "./trailMaker";
 import { loop } from "./util";
 import { Chort } from "./chort";
+import { sounds } from "./sound";
 
 const guns: { [name: string]: GunParams } = {
   uzi: { rof: 10, damage: 6 },
@@ -53,16 +54,15 @@ export class Car extends Box2dObject {
   wheels: EngineObject[];
   wheelEffects: ParticleEmitter[] = []
   guns: Gun[] = []
-  engineInstance:SoundInstance
+  engineSound:SoundInstance
 
   constructor(pos: Vector2) {
 
     super(pos, vec2(1, 2), tile2(23));
 
-    const engineSound = new Sound([.5, 0, 91, , .5, .01, 2, , , , , , .14, 1, , , , , , , -150]);
 
     // Play engine sound (loop)
-    this.engineInstance = engineSound.playMusic(0.5, true) as SoundInstance;
+    this.engineSound = sounds.engineSound.playMusic(0.5, true) as SoundInstance;
 
     this.addBox(vec2(.6, 1.6), vec2(), 0, 40, 0, .9);
 
@@ -197,7 +197,7 @@ export class Car extends Box2dObject {
 
     cameraPos.setFrom(this.pos)
 
-    this.engineInstance.setRate(.7+this.getLinearVelocity().length()/30)
+    this.engineSound.setRate(this.getLinearVelocity().length()/20)
 
   }
 }
