@@ -1,4 +1,4 @@
-import { BLACK, Color, EngineObject, Light, PI, rgb, tile, vec2, Vector2 } from "littlejsengine"
+import { BLACK, Box2dObject, Color, EngineObject, Light, PI, rgb, tile, vec2, Vector2 } from "littlejsengine"
 import { mod } from "./util";
 
 export const
@@ -35,5 +35,12 @@ export class TimeoutObject extends EngineObject {
       this.destroy()
     }
   }
+}
+
+export function fadeAndDie(o: EngineObject & { duration: number }) {
+  let t = o.getAliveTime() / o.duration;
+  o.color = rgb(1, 1, 1, 1 - t);
+  if (t > 1)
+    o.destroy()
 }
 

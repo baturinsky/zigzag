@@ -3,10 +3,10 @@ import { UIButton, vec2, UIObject, BLACK, CLEAR_BLACK, UISystemPlugin, uiSystem,
 let uiRoot: UIObject, uiMenu: UIObject;
 
 function addButtonToggle() {
-  const buttonToggle = new UIButton(vec2(-20, 20), vec2(70, 60));
-  buttonToggle.anchor = vec2(1, -1);
+  const buttonToggle = new UIButton(vec2(20, 20), vec2(40, 40));
+  buttonToggle.anchor = vec2(-1, -1);
   for (let i = -1; i <= 1; ++i) {
-    const line = new UIObject(vec2(0, i * 12), vec2(36, 5));
+    const line = new UIObject(vec2(0, i * 10), vec2(26, 5));
     line.color = BLACK;
     line.gradientColor = undefined;
     line.lineWidth = 0;
@@ -31,7 +31,7 @@ export function initUI() {
   setCanvasClearColor(hsl(0, 0, .8))
   uiMenu.addChild(new UIText(vec2(-100, -120), vec2(450, 160),
     'LittleJS UI\nSystem Demo'));
-    
+
   uiMenu.visible = false;
 
   addButtonToggle()

@@ -1,15 +1,16 @@
-import { Box2dObject, EngineObject, particleEffect, ParticleEmitter, PI, Timer, Vector2 } from "littlejsengine";
+import { Box2dObject, EngineObject, particleEffect, ParticleEmitter, PI, rand, randInCircle, randInt, Timer, Vector2 } from "littlejsengine";
 import { Beam, Missile } from "./guns";
 import { scale } from "./util";
 import { Car, TailSegment } from "./car";
 import { FlyingText } from "./flyingText";
 import { Splat } from "./splat";
+import { sounds } from "./sound";
 
 export class Mortal extends Box2dObject {
   maxLife = 1
   life = 1
   radius = 1
-
+  dying = 0
 
   setLife(l: number) {
     this.life = l;
@@ -32,6 +33,9 @@ export class Mortal extends Box2dObject {
     if (this.life > 0)
       new FlyingText(this.pos, `${damage}`)
 
+    if (damage > rand(3) && this.life > 0)
+      (sounds as any)["gore" + randInt(1, 3)].play(this.pos, rand(.8, 1.2), .5)
+
     this.life -= damage;
 
     if (this.life <= 0)
@@ -48,6 +52,22 @@ export class Mortal extends Box2dObject {
 
   nearestPointTo(start: Vector2) {
     return start.subtract(this.pos).normalize(-this.radius).add(this.pos);
+  }
+
+  update() {
+    if (this.dying) {
+
+      new Splat(this.pos.add(randInCircle(.5)), rand(.5));
+
+      if (--this.dying <= 0)
+        this.bury();
+      return
+    }
+  }
+
+  bury() {
+    //this.setCollision(false, false, false)
+    this.destroy()
   }
 
 }

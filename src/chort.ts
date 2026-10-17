@@ -12,11 +12,10 @@ export class Chort extends Mortal {
   claws: EngineObject[];
   circle
 
-  dying = 0
 
   constructor(pos: Vector2) {
 
-    super(pos, vec2(1, 1), tile1(24));
+    super(pos.copy(), vec2(1, 1), tile1(24));
     chorts.add(this)
 
     this.setLife(10)
@@ -43,12 +42,8 @@ export class Chort extends Mortal {
   }
 
   frame = 0;
+
   update() {
-    if (this.dying) {
-      if (--this.dying <= 0)
-        this.bury();
-      return
-    }
 
     let toPlayer = car.pos.subtract(this.pos);
     this.frame++;
@@ -65,6 +60,8 @@ export class Chort extends Mortal {
       if (claw)
         (claw.localPos as Vector2).y = Math.sin(this.getAliveTime() * 9 + PI * i) ** 3 * .1
     }
+
+    super.update()
 
   }
 
@@ -83,21 +80,15 @@ export class Chort extends Mortal {
       eye.destroy()
   }
 
-  bury() {
-    this.setCollision(false, false, false)
-    this.destroy()
-  }
-
+ 
   hit(hitPos: Vector2, _damage?: number) {
     let damage = super.hit(hitPos, _damage);
-    if (rand(0, this.maxLife) < damage) {
-      loop(2, i => {
-        if (this.claws[i] && rand(0,1) > .5) {
-          this.claws[i].destroy()
-          delete this.claws[i];
-        }
-      })
-    }
+    loop(2, i => {
+      if (this.claws[i] && rand(0, this.maxLife) < damage) {
+        this.claws[i].destroy()
+        delete this.claws[i];
+      }
+    })
     return damage
   }
 

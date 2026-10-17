@@ -1,4 +1,4 @@
-import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile } from "littlejsengine";
+import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile, Sound, SoundInstance } from "littlejsengine";
 import { TemporaryLight, tile2 } from "./engine";
 import { Gun, GunParams } from "./guns";
 import { Mortal } from "./mortal";
@@ -21,6 +21,7 @@ export class TailSegment extends Box2dObject {
     let joint = new Box2dRevoluteJoint(connectTo, this, top);
     joint.enableLimit();
     joint.setLimits(-.8, .8);
+    this.castShadow = false;
   }
 
   beginContact(otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) {
@@ -52,10 +53,16 @@ export class Car extends Box2dObject {
   wheels: EngineObject[];
   wheelEffects: ParticleEmitter[] = []
   guns: Gun[] = []
+  engineInstance:SoundInstance
 
   constructor(pos: Vector2) {
 
     super(pos, vec2(1, 2), tile2(23));
+
+    const engineSound = new Sound([.5, 0, 91, , .5, .01, 2, , , , , , .14, 1, , , , , , , -150]);
+
+    // Play engine sound (loop)
+    this.engineInstance = engineSound.playMusic(0.5, true) as SoundInstance;
 
     this.addBox(vec2(.6, 1.6), vec2(), 0, 40, 0, .9);
 
@@ -189,6 +196,8 @@ export class Car extends Box2dObject {
     setCameraScale(32)
 
     cameraPos.setFrom(this.pos)
+
+    this.engineInstance.setRate(.7+this.getLinearVelocity().length()/30)
 
   }
 }
