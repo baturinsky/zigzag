@@ -11,6 +11,7 @@ export class Mortal extends Box2dObject {
   life = 1
   radius = 1
   dying = 0
+  scale = 1
 
   setLife(l: number) {
     this.life = l;
@@ -41,7 +42,8 @@ export class Mortal extends Box2dObject {
     if (this.life <= 0)
       this.die()
 
-    new Splat(this.pos)
+    if (rand() < .5)
+      new Splat(this.pos)
 
     return damage;
   }

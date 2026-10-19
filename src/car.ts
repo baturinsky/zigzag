@@ -1,52 +1,77 @@
-import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile, Sound, SoundInstance } from "littlejsengine";
-import { TemporaryLight, tile2 } from "./engine";
-import { Gun, GunParams } from "./guns";
+import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile, Sound, SoundInstance, drawRect, RED, BLACK } from "littlejsengine";
+import { ram, TemporaryLight, tile2 } from "./engine";
+import { Gun, GunParams, guns } from "./guns";
 import { Mortal } from "./mortal";
 import { TrailMaker } from "./trailMaker";
 import { loop } from "./util";
 import { Chort } from "./chort";
 import { sounds } from "./sound";
+import { gameOver, gear } from "./main";
 
-const guns: { [name: string]: GunParams } = {
-  uzi: { rof: 10, damage: 6 },
-  shotgun: { damage: 5, spread: 10, burst: 12, rof: 1 },
-  grenade: { rof: 1, damage: 10, aoe: 5, damping: 5 },
-  laser: { rof: 10, damage: 6, beam: .2, spread: 0, shotColor: rgb(1, 0, 0) },
+export const carGear = {
+  Plough: (connectTo: Box2dObject) => {
+    connectTo = new TailSegment(vec2(0, -1), connectTo, tile2(22), vec2(1, 2), vec2(.3, 2), 3);
+    let rake = new TailSegment(vec2(0, -2), connectTo, tile(vec2(0, 4), vec2(70, 16), 0, 1),
+      vec2(8, 1), vec2(8, .2), 3)
+    loop(16, i => {
+      let trail = new TrailMaker(rake, .2, rgb(0, 0, 0, .2));
+      trail.localPos = vec2(i * .5 - 3.6, .1);
+    })
+  },
+
+  Chain: (car: Box2dObject) => {
+    let connectTo = car
+    loop(5, i => {
+      connectTo = new TailSegment(vec2(0, -.7 - 1.9 * i), connectTo, tile2(22), vec2(1, 2), vec2(.3, 2), 3)
+      let trail = new TrailMaker(connectTo, .2, rgb(0, 0, 0, .2));
+    })
+  },
+
+  Ram: (car: Car) => {
+
+  },
+
+  Spear: (connectTo: Box2dObject) => {
+    let l = 3;
+    loop(3, i => {
+      connectTo = new TailSegment(vec2(0, .9 + 1.9 * i), connectTo, tile2(i == l - 1 ? 25 : 24), vec2(1, 2),
+        i == l - 1 ? vec2(1, 2) : vec2(.3, 2), .1, vec2(0, 1), .2)
+      connectTo.setMass(.1)
+      connectTo.setLinearDamping(0);
+      (connectTo as TailSegment).damageMultiplier = i == l - 1 ? 10000 : 1000;
+
+      if (i == l - 1) {
+        new TrailMaker(connectTo, .2, rgb(0, 0, 0, .2));
+        let light = new Light(vec2(), 4, rgb(1, 1, 1), 4);
+        light.glow = .5
+        connectTo.addChild(light, vec2(0, 1));
+      }
+    })
+  }
+
 }
 
 export class TailSegment extends Box2dObject {
-  constructor(top: Vector2, connectTo: Box2dObject, tile: TileInfo, spriteSize: Vector2, size: Vector2, density: number) {
-    super(top.add(vec2(0, -1)), spriteSize, tile);
+  damageMultiplier = 1
+  joint: Box2dRevoluteJoint
+  constructor(mountPoint: Vector2, connectTo: Box2dObject, tile: TileInfo, spriteSize: Vector2, size: Vector2, density: number, partCenter = vec2(0, -1), limit = .3) {
+    super(mountPoint.add(partCenter), spriteSize, tile);
     this.addBox(size, vec2(), 0, 10, density);
     this.setLinearDamping(2)
-    let joint = new Box2dRevoluteJoint(connectTo, this, top);
+    let joint = new Box2dRevoluteJoint(connectTo, this, mountPoint);
     joint.enableLimit();
-    joint.setLimits(-.8, .8);
+    joint.setLimits(-limit, limit);
+    this.joint = joint
     this.castShadow = false;
   }
 
   beginContact(otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) {
-    if ((otherObject instanceof Chort) && impactSpeed) {
-      otherObject.hit(this.pos, impactSpeed * this.getMass() * .1)
-    }
+    ram(this, otherObject, (impactSpeed ?? 0) * this.damageMultiplier)
   }
+
 }
 
-function connectChain(connectTo: Box2dObject) {
-  loop(5, i => {
-    connectTo = new TailSegment(vec2(0, -1 - 2 * i), connectTo, tile2(22), vec2(1, 2), vec2(.3, 2), 3)
-  })
-}
 
-function connectRake(connectTo: Box2dObject) {
-  connectTo = new TailSegment(vec2(0, -1), connectTo, tile2(22), vec2(1, 2), vec2(.3, 2), 3);
-  let rake = new TailSegment(vec2(0, -2), connectTo, tile(vec2(0, 4), vec2(70, 16), 0, 1),
-    vec2(8, 1), vec2(8, .2), 3)
-  loop(16, i => {
-    let trail = new TrailMaker(rake, .2, rgb(0, 0, 0, .2));
-    trail.localPos = vec2(i * .5 - 3.6, .1);
-  })
-}
 
 export class Car extends Box2dObject {
 
@@ -54,25 +79,35 @@ export class Car extends Box2dObject {
   wheels: EngineObject[];
   wheelEffects: ParticleEmitter[] = []
   guns: Gun[] = []
-  engineSound:SoundInstance
+  engineSound: SoundInstance
+  life = 100
+  maxLife = 100
+
+  render(): void {
+    super.render();
+    if (this.life < this.maxLife) {
+      drawRect(this.pos.add(vec2(0, 1.5)), vec2(2.02, .12), BLACK)
+      drawRect(this.pos.add(vec2(0, 1.5)), vec2(2 / this.maxLife * this.life, .1), RED)
+    }
+  }
 
   constructor(pos: Vector2) {
 
     super(pos, vec2(1, 2), tile2(23));
+    this.renderOrder = 1
 
 
     // Play engine sound (loop)
     this.engineSound = sounds.engineSound.playMusic(0.5, true) as SoundInstance;
 
-    this.addBox(vec2(.6, 1.6), vec2(), 0, 40, 0, .9);
+    this.addBox(vec2(.8, 2), vec2(), 0, 40, 0, .9);
 
     this.setAngularDamping(50)
 
     let mainLight = new Light(vec2(), 32, rgb(.3, .3, .1));
     this.addChild(mainLight);
 
-    connectRake(this)
-
+    carGear[gear](this)
 
     this.lights = [
       vec2(.27, .65),
@@ -81,7 +116,7 @@ export class Car extends Box2dObject {
       vec2(-.2, -.65),
     ].map((v, i) => {
       let front = i < 2;
-      let light = new Light(vec2(), front ? 64 : 32, i < 2 ? rgb(1, 1, .5) : rgb(1, 0, 0), 64);
+      let light = new Light(vec2(), front ? 64 : 32, i < 2 ? rgb(.8, .8, .4) : rgb(1, 0, 0), 64);
       light.coneAngle = 1;
       light.coneSoftness = 1;
       this.addChild(light, v)
@@ -145,17 +180,23 @@ export class Car extends Box2dObject {
   frame = 0
   travelLightCharge = 0
 
-  beginContact(other: Box2dObject) {
-    if (other instanceof Mortal) {
-      other.hit(other.nearestPointTo(this.pos))
-    }
+
+  beginContact(otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) {
+    ram(this, otherObject, impactSpeed)
   }
 
+
   update() {
+    if (gameOver)
+      return
 
     this.frame++;
 
-    const forwardInput = keyDirection().y,
+    if (this.life < this.maxLife) {
+      this.life = Math.min(this.maxLife, this.life + 0.01)
+    }
+
+    let forwardInput = keyDirection().y,
       turnInput = keyDirection().x,
       brakes = keyIsDown("Space"),
       turbo = keyIsDown("ShiftLeft");
@@ -172,7 +213,14 @@ export class Car extends Box2dObject {
       this.travelLightCharge = 0;
     }*/
 
-    this.applyAcceleration(vec2().setAngle(this.angle).scale(1.5 * forwardInput * (turbo ? 2 : 1)))
+    /*if (forwardInput < 0){
+      forwardInput *= .5;
+      turnInput *= -1;
+    }*/
+
+    turbo = false;
+
+    this.applyAcceleration(vec2().setAngle(this.angle).scale(1.5 * forwardInput * (turbo ? 2 : 1) * (forwardInput < 0 ? .5 : 1)))
 
     let forwardAngle = vec2().setAngle(this.angle), rightAngle = vec2().setAngle(this.angle + PI / 2);
 
@@ -180,7 +228,7 @@ export class Car extends Box2dObject {
     let sidewayComponent = rightAngle.scale(vel.dot(rightAngle));
 
     //let directionalDampening = brakes ? [.5, .05] : [.1, 1]
-    let directionalDampening = brakes ? [1, 1] : [.1, 1]
+    let directionalDampening = brakes ? [1, 1] : [.1, .5]
 
     this.applyAcceleration(forwardComponent.scale(-directionalDampening[0] * .2))
     this.applyAcceleration(sidewayComponent.scale(-directionalDampening[1] * .2))
@@ -189,7 +237,9 @@ export class Car extends Box2dObject {
 
     //this.applyAngularImpulse(turnInput * vel.length() * .06)
 
-    this.applyAcceleration(rightAngle.scale(turnInput * (speed ** .5) * .3), this.localToWorld(vec2(0, .35)))
+    this.applyAcceleration(rightAngle.scale(turnInput * (speed ** .5) * .4 * (forwardInput < 0 ? -1 : 1)) , this.localToWorld(vec2(0, .35)))
+
+    //this.applyAngularAcceleration(turnInput * (speed ** .5) * .5)
 
     //let camPos = this.pos.add(this.getLinearVelocity().scale(.4));
     let camPos = this.pos;
@@ -197,8 +247,13 @@ export class Car extends Box2dObject {
 
     cameraPos.setFrom(this.pos)
 
-    this.engineSound.setRate(this.getLinearVelocity().length()/20)
+    this.engineSound.setRate(this.getLinearVelocity().length() / 20)
 
+  }
+
+  destroy(immediate?: boolean): void {
+    super.destroy(immediate)
+    this.engineSound.stop()
   }
 }
 

@@ -1,9 +1,20 @@
 import { box2d, Box2dObject, Box2dRaycastResult, Color, drawLine, EngineObject, engineObjectsCallback, engineObjectsRaycast, gravity, hsl, Light, particleEffect, ParticleEmitter, PI, rand, randInCircle, rgb, Timer, vec2, Vector2 } from "littlejsengine";
-import { angleDiff, TemporaryLight, tile1 } from "./engine";
-import { Car } from "./car";
+import { angleDiff, findNearest, TemporaryLight, tile1 } from "./engine";
 import { loop, min } from "./util";
 import { Mortal } from "./mortal";
-import { Chort } from "./chort";
+import { Chort, chorts } from "./chort";
+import { sounds } from "./sound";
+import { ammoUsed, currentLevel, useAmmo } from "./main";
+
+const bulletLights = false;
+
+export const guns: { [name: string]: GunParams } = {
+  revolver: { rof: 2, damage: 15 },
+  uzi: { rof: 10, damage: 6 },
+  shotgun: { damage: 5, spread: 10, burst: 12, rof: 2 },
+  grenade: { rof: 1, damage: 10, aoe: 5, damping: 5 },
+  laser: { rof: 10, damage: 6, beam: .2, spread: 0, shotColor: rgb(1, 0, 0) },
+}
 
 export type GunParams = {
 
@@ -25,7 +36,7 @@ export class Gun extends EngineObject {
   charge = 0
 
   rof = 1
-  bulletSpeed = 60
+  bulletSpeed = 240
   burst = 1
   spread = 0
   damage = 0
@@ -36,8 +47,9 @@ export class Gun extends EngineObject {
   range = 30
   piercing = 0
   shotColor: Color = rgb(1, 1, 1)
+  shootSound = sounds.shoot;
 
-  constructor(public car: Car, stats: Partial<Gun> = {}) {
+  constructor(public owner: EngineObject, stats: Partial<Gun> = {}) {
     super(vec2(), vec2());
     Object.assign(this, stats)
   }
@@ -51,8 +63,16 @@ export class Gun extends EngineObject {
   }
 
   shoot() {
-    let target = this.findTarget();
+    if(ammoUsed >= currentLevel.ammo)
+      return;
+
+    let target = this.findTarget() as Chort;
     if (target) {
+      useAmmo(1);
+      
+      if(this.shootSound){
+        this.shootSound.play(this.pos, 3)
+      }
 
       loop(this.burst, i => {
         let shot: Beam | Missile
@@ -68,18 +88,10 @@ export class Gun extends EngineObject {
   }
 
   findTarget() {
-    let chortsNearby = [] as Chort[]
-    engineObjectsCallback(this.pos, this.range, (o) => {
-      if (o instanceof Chort && o.pos) {
-        let angle = o.pos.subtract(this.pos).angle();
-        if (Math.abs(angleDiff(angle, this.angle)) < .5) {
-          chortsNearby.push(o)
-        }
-      }
-    })
-
-    let nearest = chortsNearby.length ? min(chortsNearby, c => c.pos.subtract(this.pos).length()) : undefined;
-    return nearest
+    let t = findNearest(chorts, this.pos, this.angle)
+    if(t && t.pos.distance(this.pos) > this.range)
+      return undefined
+    return t;
   }
 }
 
@@ -154,7 +166,8 @@ export class Missile extends Box2dObject {
     this.color = rgb(1, 1, 1);
     this.emissive = 1;
     this.renderOrder = -1
-    this.addCircle(.3)
+    this.addCircle(.3, vec2(), 10)
+    this.isBullet = true;
     this.castShadow = false;
     this.mass = 1
     if (gun.damping) {
@@ -178,16 +191,18 @@ export class Missile extends Box2dObject {
       vel = vel.add(delta)
     }
 
-    this.setLinearVelocity(vel);
+    this.setLinearVelocity(vel.add(target.getLinearVelocity()));
 
     this.isBullet = true;
     this.isSolid = false;
 
     this.setFilterData(2, 2)
 
-    let l = new Light(vec2(), 2, rgb(.3, .1, .1), 2);
-    l.castShadow = false;
-    this.addChild(l)
+    if (bulletLights) {
+      let l = new Light(vec2(), 2, rgb(.3, .1, .1), 2);
+      l.castShadow = false;
+      this.addChild(l)
+    }
 
     //this.isSolid = false
 
@@ -198,7 +213,7 @@ export class Missile extends Box2dObject {
   }
 
   update() {
-    if (this.getAliveTime() > .5) {
+    if (this.getAliveTime() > 1) {
       this.timeout()
       return
     }

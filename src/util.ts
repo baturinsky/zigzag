@@ -14,7 +14,18 @@ export const
     let r = amf.indexOf(Math.min(...amf))
     return r;
   },
-  min = <T>(a: T[], f: (v: T) => number) => a[minInd(a, f)],
+  min = <T>(a: T[]|Iterable<T>, f: (v: T) => number) => {
+    let v = Number.POSITIVE_INFINITY;
+    let b: T | undefined = undefined;
+    for(let w of a){
+      let c = f(w)
+      if(c<v){
+        v = c;
+        b = w
+      }
+    }
+    return b;
+  },
   listSum = <T>(a: T[], f = (a: any) => a) => a.reduce((q, p) => q + f(p), 0),
   scale = <T extends number[]>(a: T, m: number) => a.map(v => v * m) as T,
   numTween = (a: number, b: number, m: number) => a * (1 - m) + b * m,

@@ -1,5 +1,7 @@
-import { BLACK, Box2dObject, Color, EngineObject, Light, PI, rgb, tile, vec2, Vector2 } from "littlejsengine"
-import { mod } from "./util";
+import { BLACK, Box2dObject, Color, EngineObject, engineObjectsCallback, Light, PI, rgb, tile, vec2, Vector2 } from "littlejsengine"
+import { mod, loop, min } from "./util";
+import { Chort } from "./chort";
+import { Mortal } from "./mortal";
 
 export const
   tile1 = (slot: number) => tile(slot, vec2(16, 16), 0, 1),
@@ -25,7 +27,7 @@ export class TemporaryLight extends Light {
   }
 }
 
-export class TimeoutObject extends EngineObject {
+export class TimeoutObject extends Mortal {
   constructor(public delay: number, public callback: () => void) {
     super(vec2(), vec2())
   }
@@ -44,3 +46,22 @@ export function fadeAndDie(o: EngineObject & { duration: number }) {
     o.destroy()
 }
 
+export function findNearest(entities: Mortal[] | Set<Mortal>, pos: Vector2, angle?: number) {
+
+  let nearest = min(Array.isArray ? entities : entities.entries, (e: Mortal) => {
+    if (e.life <= 0)
+      return 1e9;
+    let a = e.pos.subtract(pos).angle();
+    if (angle !== undefined && Math.abs(angleDiff(a, angle)) > .2)
+      return 1e9;
+    return e.pos.distance(pos)
+  })
+
+  return nearest;
+}
+
+export function ram(rammer: Box2dObject, otherObject: Box2dObject, impactSpeed?: number) {
+  if ((otherObject instanceof Chort) && impactSpeed) {
+    otherObject.hit(rammer.pos, impactSpeed * rammer.getMass() * .1)
+  }
+}
