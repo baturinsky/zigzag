@@ -18,13 +18,15 @@ export class Mortal extends Box2dObject {
     this.maxLife = l;
   }
 
-  hit(hitPos: Vector2, damage?: number) {
+  hit(hitPos: Vector2, damage?: number, noBlood = false) {
 
-    let e = particleEffect("blood", hitPos, {
-      gravity: 0, particleTime: .3, emitTime: .1
-    }) as ParticleEmitter;
-    e.angle = this.pos.subtract(hitPos).angle();
-    e.emissive = 1;
+    if (!noBlood) {
+      let e = particleEffect("blood", hitPos, {
+        gravity: 0, particleTime: .3, emitTime: .1
+      }) as ParticleEmitter;
+      e.angle = this.pos.subtract(hitPos).angle();
+      e.emissive = 1;
+    }
 
     damage = Math.round(damage ?? 0)
 
@@ -42,7 +44,7 @@ export class Mortal extends Box2dObject {
     if (this.life <= 0)
       this.die()
 
-    if (rand() < .5)
+    if (rand() < .5 && !noBlood)
       new Splat(this.pos)
 
     return damage;

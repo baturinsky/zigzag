@@ -83,7 +83,7 @@ function winLevel() {
   for (let chort of [...chorts]) {
     chort.destroy()
   }
-  gameOverText.text = "You won.\nNew Nights or gear may be unlocked";
+  gameOverText.text = "You have won.\nNew Nights or Gear may be unlocked";
   career.latestLevel = Math.max(career.latestLevel, level);
   career.levelsCompleted[level + gear] = 1;
   writeSaveData(saveName, career)
@@ -164,7 +164,6 @@ export const gameScene: Scene = {
     gameFrame++;
     uiInfo.text =
       `
-${lightness}
 Night: ${level + 1}
 Gear: ${gear}
 Wave: ${wave}/${currentLevel.waves}

@@ -1,5 +1,5 @@
-import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile, Sound, SoundInstance, drawRect, RED, BLACK } from "littlejsengine";
-import { ram, TemporaryLight, tile2 } from "./engine";
+import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile, Sound, SoundInstance, drawRect, RED, BLACK, engineObjectsCallback } from "littlejsengine";
+import { ram, TemporaryLight, tile1, tile2 } from "./engine";
 import { Gun, GunParams, guns } from "./guns";
 import { Mortal } from "./mortal";
 import { TrailMaker } from "./trailMaker";
@@ -7,6 +7,8 @@ import { loop } from "./util";
 import { Chort } from "./chort";
 import { sounds } from "./sound";
 import { gameOver, gear } from "./main";
+
+let barrel: TailSegment | undefined;
 
 export const carGear = {
   Plough: (connectTo: Box2dObject) => {
@@ -27,8 +29,11 @@ export const carGear = {
     })
   },
 
-  Ram: (car: Car) => {
-
+  Barrel: (car: Car) => {
+    let chain = new TailSegment(vec2(0, -.7), car, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
+    chain = new TailSegment(vec2(0, -2.7), chain, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
+    barrel = new TailSegment(vec2(0, -4), chain, tile1(42), vec2(2, 2), vec2(2, 2), 3)
+    barrel.renderOrder = 1
   },
 
   Spear: (connectTo: Box2dObject) => {
@@ -47,7 +52,14 @@ export const carGear = {
         connectTo.addChild(light, vec2(0, 1));
       }
     })
-  }
+  },
+
+  Ram: (car: Car) => {
+    car.maxLife = 1000;
+    car.life = 1000
+    car.setAngularDamping(20)
+  },
+
 
 }
 
@@ -63,6 +75,7 @@ export class TailSegment extends Box2dObject {
     joint.setLimits(-limit, limit);
     this.joint = joint
     this.castShadow = false;
+    this.renderOrder = .5
   }
 
   beginContact(otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) {
@@ -106,6 +119,8 @@ export class Car extends Box2dObject {
 
     let mainLight = new Light(vec2(), 32, rgb(.3, .3, .1));
     this.addChild(mainLight);
+
+    barrel = undefined;
 
     carGear[gear](this)
 
@@ -193,7 +208,7 @@ export class Car extends Box2dObject {
     this.frame++;
 
     if (this.life < this.maxLife) {
-      this.life = Math.min(this.maxLife, this.life + 0.01)
+      this.life = Math.min(this.maxLife, this.life + this.maxLife/1e4)
     }
 
     let forwardInput = keyDirection().y,
@@ -218,6 +233,10 @@ export class Car extends Box2dObject {
       turnInput *= -1;
     }*/
 
+    if (barrel && rand() < .2) {
+      new FireTrap(barrel.pos)
+    }
+
     turbo = false;
 
     this.applyAcceleration(vec2().setAngle(this.angle).scale(1.5 * forwardInput * (turbo ? 2 : 1) * (forwardInput < 0 ? .5 : 1)))
@@ -237,7 +256,7 @@ export class Car extends Box2dObject {
 
     //this.applyAngularImpulse(turnInput * vel.length() * .06)
 
-    this.applyAcceleration(rightAngle.scale(turnInput * (speed ** .5) * .4 * (forwardInput < 0 ? -1 : 1)) , this.localToWorld(vec2(0, .35)))
+    this.applyAcceleration(rightAngle.scale(turnInput * (speed ** .5) * .4 * (forwardInput < 0 ? -1 : 1)), this.localToWorld(vec2(0, .35)))
 
     //this.applyAngularAcceleration(turnInput * (speed ** .5) * .5)
 
@@ -257,3 +276,32 @@ export class Car extends Box2dObject {
   }
 }
 
+class FireTrap extends EngineObject {
+  scale = 1
+  effect:ParticleEmitter
+  spot:EngineObject
+  constructor(pos: Vector2) {
+    super(pos, vec2())
+    let e = particleEffect("fire", vec2(), { scale: 3, emitTime: 10, colorStartB: RED }) as ParticleEmitter;
+    e.emissive = 1;
+    this.effect = e;
+    this.addChild(e)
+    this.spot = new EngineObject(this.pos, vec2(1), tile1(27))
+    this.addChild(this.spot)
+    this.spot.castShadow = false;
+    let light = new Light(vec2(), 4, rgb(1, 1, 1), 4);
+    this.addChild(light)
+  }
+  update(): void {
+    this.scale += .005
+    this.effect.scale = this.scale * 3;
+
+    if (this.getAliveTime() > 5)
+      this.destroy()
+    engineObjectsCallback(this.pos, 3 * this.scale, (o: EngineObject) => {
+      if (o instanceof Chort) {
+        o.hit(this.pos, 1, true)
+      }
+    })
+  }
+}

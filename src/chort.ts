@@ -1,4 +1,4 @@
-import { Box2dObject, EngineObject, Vector2, vec2, rand, PI, Light, RED, cameraPos, particleEffect } from 'littlejsengine';
+import { Box2dObject, EngineObject, Vector2, vec2, rand, PI, Light, RED, cameraPos, particleEffect, ParticleEmitter } from 'littlejsengine';
 import { tile1, angleDiff, findNearest } from './engine';
 import { car, villageCenter } from './main';
 import { loop } from './util';
@@ -55,7 +55,10 @@ export class Chort extends Mortal {
 
     if (this.life > 0 && toCar < 1.1)  {
       car.life -= 1
-      particleEffect('sparks', car.pos.lerp(this.pos, .5), {scale:2, emitTime: .3 })
+      if(rand()<.3)
+        sounds.metal.play(this.pos)
+      //let pe = particleEffect('sparks', car.pos.lerp(this.pos, .5), {scale:2, emitTime: .1 }) as ParticleEmitter;
+      //pe.emissive = 1;
     }
 
     if (!target || (toCar < this.pos.distance(target.pos) && toCar < 50))
@@ -105,9 +108,9 @@ export class Chort extends Mortal {
   }
 
 
-  hit(hitPos: Vector2, _damage?: number) {
+  hit(hitPos: Vector2, _damage?: number, noBlood = false) {
 
-    let damage = super.hit(hitPos, _damage);
+    let damage = super.hit(hitPos, _damage, noBlood);
     loop(2, i => {
       let claw = this.claws[i]
       if (claw && rand(0, this.maxLife) < damage) {
