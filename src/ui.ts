@@ -1,9 +1,10 @@
-import { UIButton, vec2, UIObject, BLACK, CLEAR_BLACK, UISystemPlugin, uiSystem, Sound, setCanvasClearColor, hsl, UIText, drawCircle, RED, mainCanvasSize, WHITE, setPaused, setSoundEnable, setSoundVolume, GREEN, rgb } from "littlejsengine";
-import { career, gameScene, levels, startLevel } from "./main";
+import { UIButton, vec2, UIObject, BLACK, CLEAR_BLACK, UISystemPlugin, uiSystem, Sound, setCanvasClearColor, hsl, UIText, drawCircle, RED, mainCanvasSize, WHITE, setPaused, setSoundEnable, setSoundVolume, GREEN, rgb, UILayout } from "littlejsengine";
+import { career, gameScene, startLevel } from "./main";
 import { loop } from "./util";
 import { carGear } from "./car";
+import { config } from "./config";
 
-export let uiRoot: UIObject, uiMenu: UIObject, uiInfo: UIText, uiGameOver: UIObject, buttonToggle:UIObject;
+export let uiRoot: UIObject, uiMenu: UIObject, uiInfo: UIText, uiGameOver: UIObject, buttonToggle: UIObject;
 
 function addButtonToggle() {
   buttonToggle = new UIButton(vec2(20, 20), vec2(40, 40));
@@ -28,7 +29,7 @@ function toggleMenu() {
   setSoundVolume(uiMenu.visible ? 0 : .5)
 }
 
-export let gameOverText:UIText
+export let gameOverText: UIText
 
 export function initGameOverText() {
   uiGameOver = new UIObject(vec2(), vec2(600, 300));
@@ -51,22 +52,32 @@ export function updateMenu() {
   uiMenu = new UIObject(vec2(), vec2(1000, 600));
   uiMenu.visible = false
 
+  let layout = new UILayout(vec2(300,100), Object.keys(carGear).length + 1, 20, 10, true);  
+  uiMenu.addChild(layout)
+  layout.anchor = vec2(0,0)
+
+
+  layout.addChild(new UIObject())
+
   Object.keys(carGear).forEach((gear, i) => {
-    let text = new UIText(vec2(180 + i * 140, 20), vec2(110, 35), gear);
+    let text = new UIText(vec2(), vec2(110, 35), gear);
     text.anchor = vec2(-1, -1);
-    uiMenu.addChild(text)
+    layout.addChild(text)
   })
 
-  loop(levels.length, level => {
-    let text = new UIText(vec2(40, 80 + level * 60), vec2(110, 35), `Night ${level + 1}`, "center");
+
+  loop(config.levels.length, level => {
+    let text = new UIText(vec2(), vec2(110, 35), `Night ${level + 1}`, "center");
     text.anchor = vec2(-1, -1);
-    uiMenu.addChild(text)
+    layout.addChild(text)
 
     Object.keys(carGear).forEach((gear, i) => {
       let available = i <= career.latestLevel + 1 && level <= career.latestLevel + 1;
 
-      if (!available)
+      if (!available){
+        layout.addChild(new UIObject())
         return
+      }
 
       let done = career.levelsCompleted[level + gear]
 
@@ -80,7 +91,7 @@ export function updateMenu() {
       let button = new UIButton(vec2(180 + i * 140, 75 + level * 60), vec2(120, 40));
       button.addChild(text)
       button.anchor = vec2(-1, -1);
-      uiMenu.addChild(button)
+      layout.addChild(button)
 
       button.onClick = () => {
         startLevel(level, gear)

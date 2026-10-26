@@ -3,8 +3,9 @@ import { Beam, Missile } from "./guns";
 import { scale } from "./util";
 import { Car, TailSegment } from "./car";
 import { FlyingText } from "./flyingText";
-import { Splat } from "./splat";
+import { addSplat, Splat } from "./splat";
 import { sounds } from "./sound";
+import { config } from "./config";
 
 export class Mortal extends Box2dObject {
   maxLife = 1
@@ -44,8 +45,8 @@ export class Mortal extends Box2dObject {
     if (this.life <= 0)
       this.die()
 
-    if (rand() < .5 && !noBlood)
-      new Splat(this.pos)
+    if (rand() < .5 * config.bloodyness && !noBlood)
+      addSplat(this.pos)
 
     return damage;
   }
@@ -61,7 +62,7 @@ export class Mortal extends Box2dObject {
   update() {
     if (this.dying) {
 
-      new Splat(this.pos.add(randInCircle(.5)), rand(.5));
+      addSplat(this.pos.add(randInCircle(.5)), rand(.5));
 
       if (--this.dying <= 0)
         this.bury();

@@ -4,7 +4,7 @@ import { loop, min } from "./util";
 import { Mortal } from "./mortal";
 import { Chort, chorts } from "./chort";
 import { sounds } from "./sound";
-import { ammoUsed, currentLevel, useAmmo } from "./main";
+import { ammoUsed, level, useAmmo } from "./main";
 
 const bulletLights = false;
 
@@ -63,7 +63,7 @@ export class Gun extends EngineObject {
   }
 
   shoot() {
-    if(ammoUsed >= currentLevel.ammo)
+    if(ammoUsed >= level.ammo)
       return;
 
     let target = this.findTarget() as Chort;

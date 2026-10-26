@@ -1,4 +1,7 @@
-import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED, UISystemPlugin, uiSystem, Sound, canvasClearColor, UIObject, UIText, CLEAR_BLACK, UIButton, drawCircle, randInCircle, CYAN, setScene, loadAtlas, loadSprite, Box2dPlugin, Scene, Timer, readSaveData, setSoundVolume, writeSaveData } from 'littlejsengine';
+import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED, UISystemPlugin, uiSystem, Sound, canvasClearColor, UIObject, UIText, CLEAR_BLACK, UIButton, drawCircle, randInCircle, CYAN, setScene, loadAtlas, loadSprite, Box2dPlugin, Scene, Timer, readSaveData, setSoundVolume, writeSaveData, TileLayer, randInt } from 'littlejsengine';
+
+
+export let bloodLayer: DecalLayer
 
 import { ram, tile1, tile2 } from './engine';
 import { Car, carGear, TailSegment } from './car';
@@ -6,6 +9,10 @@ import { Chort, chorts } from './chort';
 import { initUI, uiInfo, uiMenu, uiGameOver, updateMenu, gameOverText, buttonToggle } from './ui';
 import { loop } from './util';
 import { Militia, militias } from './militia';
+import { DecalLayer } from '../decalLayer';
+import { addSplat } from './splat';
+import { config, Level } from './config';
+import { TrailMaker } from './trailMaker';
 
 const saveName = "chort crusher";
 
@@ -22,27 +29,12 @@ export let career: {
 } = JSON.parse(JSON.stringify(defaultCareer));
 
 
-export const levels = [
-  { waves: 3, interval: 30, inWave: 10, ammo: 100, brutes: .03 },
-  { waves: 5, interval: 30, inWave: 20, ammo: 300, growth: 4, brutes: .04 },
-  { waves: 7, interval: 30, inWave: 20, ammo: 200, growth: 4, brutes: .06 },
-  { waves: 7, interval: 20, inWave: 15, ammo: 200, growth: 3, brutes: .08 },
-  { waves: 25, interval: 5, inWave: 5, ammo: 200, growth: 0, brutes: .1 },
-  { waves: 7, interval: 30, inWave: 10, ammo: 200, growth: 3, brutes: .5 },
-]
 
-export let currentLevel: {
-  waves: number;
-  interval: number;
-  inWave: number;
-  ammo: number;
-  growth?: number
-  brutes?: number
-};
+export let level: Level;
 
 // each tile in tiles.png has a 1 pixel border, which stops texture bleeding
 setTileDefaultPadding(1);
-export let car: Car, groundObject: Box2dStaticObject, wave = 0, level = 0, gear = "None";
+export let car: Car, groundObject: Box2dStaticObject, wave = 0, levelNumber = 0, gear = "None";
 export const villageCenter = vec2(0, 100);
 const huts: Box2dStaticObject[] = []
 
@@ -54,10 +46,13 @@ export function useAmmo(n = 1) {
 
 export function startLevel(_level: number, _gear: string) {
   gameOver = false;
-  level = _level
+  levelNumber = _level
   gear = _gear;
-  currentLevel = levels[level]
+  level = {...config.levels[levelNumber]}
+  level.ammo *= config.ammoMult;
   setScene(gameScene);
+  bloodLayer = new DecalLayer(vec2(config.decalLayerSize), 0)
+  bloodLayer.castShadow = false
 }
 
 function resetLevel() {
@@ -84,8 +79,8 @@ function winLevel() {
     chort.destroy()
   }
   gameOverText.text = "You have won.\nNew Nights or Gear may be unlocked";
-  career.latestLevel = Math.max(career.latestLevel, level);
-  career.levelsCompleted[level + gear] = 1;
+  career.latestLevel = Math.max(career.latestLevel, levelNumber);
+  career.levelsCompleted[levelNumber + gear] = 1;
   writeSaveData(saveName, career)
   let x = {}
   x = readSaveData(saveName, defaultCareer)
@@ -128,12 +123,12 @@ export const gameScene: Scene = {
     if (gameOver)
       return;
 
-    if (rand() < currentLevel.ammo / 10000 && ammoUsed < currentLevel.ammo && ammoUsed > 0) {
+    if (rand() < level.ammo / 10000 && ammoUsed < level.ammo && ammoUsed > 0) {
       ammoUsed--;
     }
 
     let lightness = Math.max(0.1, Math.cos(
-      Math.min(1, timer.get() / (currentLevel.waves * currentLevel.interval)) * PI * 2
+      Math.min(1, timer.get() / (level.waves * level.interval)) * PI * 2
     ));
 
     lightSystem.ambientColor = rgb(1 * lightness, .5 * lightness, .3 * (1 - lightness));
@@ -141,13 +136,13 @@ export const gameScene: Scene = {
     // called every frame at 60 frames per second
     // handle input and update the game state
 
-    let secondsPerWave = currentLevel.interval;
+    let secondsPerWave = level.interval;
 
-    if (timer.get() > wave * secondsPerWave && wave < currentLevel.waves) {
+    if (timer.get() > wave * secondsPerWave && wave < level.waves) {
       newWave()
     }
 
-    if (chorts.size <= 5 && wave == currentLevel.waves && !gameOver) {
+    if (chorts.size <= 5 && wave == level.waves && !gameOver) {
       winLevel()
     }
 
@@ -164,13 +159,13 @@ export const gameScene: Scene = {
     gameFrame++;
     uiInfo.text =
       `
-Night: ${level + 1}
+Night: ${levelNumber + 1}
 Gear: ${gear}
-Wave: ${wave}/${currentLevel.waves}
-Until next wave: ${wave < currentLevel.waves ? (secondsPerWave - ~~timer.get() % secondsPerWave) + "s" : "-"}
+Wave: ${wave}/${level.waves}
+Until next wave: ${wave < level.waves ? (secondsPerWave - ~~timer.get() % secondsPerWave) + "s" : "-"}
 Chorts: ${chorts.size}
 Militia: ${militias.size}
-Ammo left: ${currentLevel.ammo - ammoUsed}/${currentLevel.ammo}
+Ammo left: ${level.ammo - ammoUsed}/${level.ammo}
 `;
 
   },
@@ -194,6 +189,14 @@ Ammo left: ${currentLevel.ammo - ammoUsed}/${currentLevel.ammo}
         drawRect(pos.add(p.scale(.2)), vec2(4), color, 0, false, true)
       }
     }
+
+
+    //bloodLayer.follow(cameraPos)
+    
+    //bloodLayer.drawTile(car.pos, vec2(1), tile1(4))
+
+    //addSplat(car.pos)
+
   }
 }
 
@@ -227,8 +230,9 @@ main()
 function newWave() {
   wave++;
   let pos = villageCenter.add(randInCircle(200, 200))
-  loop(currentLevel.inWave + wave * (currentLevel.growth ?? 0), i => {
-    new Chort(pos.add(randInCircle(60)), (currentLevel.brutes ?? 0) > rand() ? 2 : 1)
+  let mobs = (level.inWave + wave * (level.growth ?? 0)) * config.monsterNumber;
+  loop(mobs, i => {
+    new Chort(pos.add(randInCircle(60)), (level.brutes ?? 0) > rand() ? 2 : 1)
   })
 }
 
@@ -239,6 +243,14 @@ function addWood() {
   loop(100, i => {
     let size = vec2(rand(.5, 1), rand(.5, 5)), angle = rand(PI * 2);
     let box = new Box2dObject(randInCircle(200, 100), size, wood, angle)
+    box.renderOrder = 1
+    
+    let trails = randInt(2,5);
+    loop(trails ,i=>{
+      let tm = new TrailMaker(box,  rand(.1, .5) )      
+      tm.localPos = vec2(0, size.y * rand(-.5,.5));
+    })
+
     box.beginContact = (otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) => {
       ram(box, otherObject, impactSpeed)
     }

@@ -7,6 +7,7 @@ import { loop } from "./util";
 import { Chort } from "./chort";
 import { sounds } from "./sound";
 import { gameOver, gear } from "./main";
+import { config } from "./config";
 
 let barrel: TailSegment | undefined;
 
@@ -55,8 +56,8 @@ export const carGear = {
   },
 
   Ram: (car: Car) => {
-    car.maxLife = 1000;
-    car.life = 1000
+    car.maxLife = config.carLife*3;
+    car.life = car.maxLife
     car.setAngularDamping(20)
   },
 
@@ -76,6 +77,7 @@ export class TailSegment extends Box2dObject {
     this.joint = joint
     this.castShadow = false;
     this.renderOrder = .5
+    this.isBullet = true
   }
 
   beginContact(otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) {
@@ -171,19 +173,19 @@ export class Car extends Box2dObject {
       return wheel
     })
 
-    if (false)
-      this.guns = [
-        { pos: vec2(-.5, -.2), ...guns.grenade },
-        { pos: vec2(.5, .2), ...guns.laser },
-        //{ pos: vec2(.5, -.2), ...guns.uzi },
-      ].map((p, i) => {
-        let q = { ...p } as any;
-        delete q.pos;
-        let gun = new Gun(this, q);
-        this.addChild(gun, p.pos);
-        gun.localAngle = vec2(p.pos.x, 0).angle();
-        return gun
-      })
+
+    this.guns = [
+      //{ pos: vec2(-.5, -.2), ...guns.grenade },
+      //{ pos: vec2(.5, .2), ...guns.laser },
+      //{ pos: vec2(.5, -.2), ...guns.uzi },
+    ].map((p, i) => {
+      let q = { ...p } as any;
+      delete q.pos;
+      let gun = new Gun(this, q);
+      this.addChild(gun, p.pos);
+      gun.localAngle = vec2(p.pos.x, 0).angle();
+      return gun
+    })
 
 
     /*let joint = new Box2dFrictionJoint(groundObject, this)

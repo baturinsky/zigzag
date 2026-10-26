@@ -48,7 +48,7 @@ export function fadeAndDie(o: EngineObject & { duration: number }) {
 
 export function findNearest(entities: Mortal[] | Set<Mortal>, pos: Vector2, angle?: number) {
 
-  let nearest = min(Array.isArray ? entities : entities.entries, (e: Mortal) => {
+  let nearest = min(true ? entities : entities.entries  as any, (e: Mortal) => {
     if (e.life <= 0)
       return 1e9;
     let a = e.pos.subtract(pos).angle();

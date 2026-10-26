@@ -1,6 +1,7 @@
 import { Box2dObject, rand, rgb, TileInfo, vec2, Vector2 } from "littlejsengine";
 import { fadeAndDie, tile1 } from "./engine";
-import { Splat } from "./splat";
+import { addSplat, Splat } from "./splat";
+import { config } from "./config";
 
 export class Gore extends Box2dObject {
   duration = 10
@@ -14,8 +15,8 @@ export class Gore extends Box2dObject {
 
   update(): void {
     fadeAndDie(this);
-    if(rand()<.3)
-      new Splat(this.pos, .3)
+    if(rand()<.3 * config.bloodyness)
+      addSplat(this.pos, .3)
   }
 
 }
