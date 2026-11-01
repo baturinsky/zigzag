@@ -1,12 +1,9 @@
 import { Light, PI, Vector2, rand, rgb, vec2 } from "littlejsengine";
 import { angleDiff, findNearest, tile1 } from "./engine";
 import { Mortal } from "./mortal";
-import { Gun, guns } from "./guns";
-import { Chort, chorts } from "./chort";
-import { randomElement } from "./util";
+import { Gun, weapons } from "./guns";
+import { scenario } from "./main";
 
-
-export let militias = new Set<Militia>()
 
 export class Militia extends Mortal {
 
@@ -14,7 +11,7 @@ export class Militia extends Mortal {
 
   constructor(pos: Vector2) {
     super(pos.copy(), vec2(1, 1), tile1(26));
-    militias.add(this)
+    scenario.militias.add(this)
 
     this.setLife(100)
 
@@ -25,7 +22,7 @@ export class Militia extends Mortal {
     this.setMass(200)
     this.setAngle(rand(0, PI * 2));
 
-    let gun = new Gun(this, /*randomElement(Object.entries(guns))*/ guns.revolver);
+    let gun = new Gun(this, /*randomElement(Object.entries(guns))*/ weapons.uzi);
     this.addChild(gun, vec2(0, .5));
 
     this.gun = gun
@@ -39,7 +36,7 @@ export class Militia extends Mortal {
   }
 
   update() {
-    let chort = findNearest(chorts, this.pos)
+    let chort = findNearest(scenario.chorts, this.pos)
     if (chort) {
       let toChort = chort.pos.subtract(this.pos);
       let targetAngle = toChort.angle();
@@ -53,7 +50,7 @@ export class Militia extends Mortal {
 
   destroy(immediate?: boolean): void {
     super.destroy(immediate)
-    militias.delete(this)
+    scenario.militias.delete(this)
   }
 
 }

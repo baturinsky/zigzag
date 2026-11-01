@@ -314,10 +314,10 @@ fsevents@~2.3.2, fsevents@~2.3.3:
   resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.3.tgz#cac6407785d03675a2a5e1a5305c697b347d90d6"
   integrity sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==
 
-littlejsengine@^1.27.2:
-  version "1.27.2"
-  resolved "https://registry.yarnpkg.com/littlejsengine/-/littlejsengine-1.27.2.tgz#79b458a082088a4248b17337fe81a969d1ec88e4"
-  integrity sha512-oFvkLw5MPWUyqux59bSvA4WQNjXy+dAb/mcWQNx4mj0A64UXFVGpMYAEUUR0YGcVTEueusWRYpByGFFglhi9pg==
+littlejsengine@1.28:
+  version "1.28.0"
+  resolved "https://registry.yarnpkg.com/littlejsengine/-/littlejsengine-1.28.0.tgz#3c5ad9901424ab62a9591dc603f257a2d28a8a49"
+  integrity sha512-HTea1Xzn/lwY8i/1BMCojYl7Pfd9GpvMi5hTpMhJtwkzAHI4bfR4o9+nTg+wbMbuAR14xtTEf/hbDVWHkCSkjA==
 
 nanoid@^3.3.19:
   version "3.3.20"

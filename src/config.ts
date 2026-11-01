@@ -4,6 +4,9 @@ export const config = {
   ammoMult: 1.5,
   decalLayerSize: 1024,
   carLife: 50,
+  defaultVolume: .5,
+
+  survivorMode: true,
 
   levels: [
     { waves: 3, interval: 30, inWave: 10, ammo: 100, brutes: .03 },

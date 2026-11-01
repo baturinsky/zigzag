@@ -1,20 +1,20 @@
-import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile, Sound, SoundInstance, drawRect, RED, BLACK, engineObjectsCallback } from "littlejsengine";
+import { Box2dObject, Light, EngineObject, ParticleEmitter, Vector2, vec2, rgb, PI, particleEffect, keyDirection, keyIsDown, setCameraScale, cameraPos, rand, Color, Box2dRevoluteJoint, TileInfo, tile, Sound, SoundInstance, drawRect, RED, BLACK, engineObjectsCallback, lerp } from "littlejsengine";
 import { ram, TemporaryLight, tile1, tile2 } from "./engine";
-import { Gun, GunParams, guns } from "./guns";
+import { Gun, WeaponParams, weapons, makeGun, FireTrap } from "./guns";
 import { Mortal } from "./mortal";
 import { TrailMaker } from "./trailMaker";
 import { loop } from "./util";
 import { Chort } from "./chort";
 import { sounds } from "./sound";
-import { gameOver, gear } from "./main";
 import { config } from "./config";
+import { car, scenario } from "./main";
 
 let barrel: TailSegment | undefined;
 
 export const carGear = {
-  Plough: (connectTo: Box2dObject) => {
-    connectTo = new TailSegment(vec2(0, -1), connectTo, tile2(22), vec2(1, 2), vec2(.3, 2), 3);
-    let rake = new TailSegment(vec2(0, -2), connectTo, tile(vec2(0, 4), vec2(70, 16), 0, 1),
+  plough: (car: Car) => {
+    let chain = new TailSegment(vec2(0, -1), car, tile2(22), vec2(1, 2), vec2(.3, 2), 3);
+    let rake = new TailSegment(vec2(0, -2), chain, tile(vec2(0, 4), vec2(70, 16), 0, 1),
       vec2(8, 1), vec2(8, .2), 3)
     loop(16, i => {
       let trail = new TrailMaker(rake, .2, rgb(0, 0, 0, .2));
@@ -22,23 +22,24 @@ export const carGear = {
     })
   },
 
-  Chain: (car: Box2dObject) => {
-    let connectTo = car
+  chain: (car: Car) => {
+    let chainLink: Box2dObject = car;
     loop(5, i => {
-      connectTo = new TailSegment(vec2(0, -.7 - 1.9 * i), connectTo, tile2(22), vec2(1, 2), vec2(.3, 2), 3)
-      let trail = new TrailMaker(connectTo, .2, rgb(0, 0, 0, .2));
+      chainLink = new TailSegment(vec2(0, -.7 - 1.9 * i), chainLink, tile2(22), vec2(1, 2), vec2(.3, 2), 3)
+      let trail = new TrailMaker(chainLink, .2, rgb(0, 0, 0, .2));
     })
   },
 
-  Barrel: (car: Car) => {
+  barrel: (car: Car) => {
     let chain = new TailSegment(vec2(0, -.7), car, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
     chain = new TailSegment(vec2(0, -2.7), chain, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
     barrel = new TailSegment(vec2(0, -4), chain, tile1(42), vec2(2, 2), vec2(2, 2), 3)
     barrel.renderOrder = 1
   },
 
-  Spear: (connectTo: Box2dObject) => {
+  spear: (car: Car) => {
     let l = 3;
+    let connectTo: Box2dObject = car;
     loop(3, i => {
       connectTo = new TailSegment(vec2(0, .9 + 1.9 * i), connectTo, tile2(i == l - 1 ? 25 : 24), vec2(1, 2),
         i == l - 1 ? vec2(1, 2) : vec2(.3, 2), .1, vec2(0, 1), .2)
@@ -55,8 +56,8 @@ export const carGear = {
     })
   },
 
-  Ram: (car: Car) => {
-    car.maxLife = config.carLife*3;
+  ram: (car: Car) => {
+    car.maxLife = config.carLife * 3;
     car.life = car.maxLife
     car.setAngularDamping(20)
   },
@@ -78,6 +79,8 @@ export class TailSegment extends Box2dObject {
     this.castShadow = false;
     this.renderOrder = .5
     this.isBullet = true
+    this.mass /= 10;
+    car.tailSegments.push(this)
   }
 
   beginContact(otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) {
@@ -86,6 +89,11 @@ export class TailSegment extends Box2dObject {
 
 }
 
+const gunMountPoints = [
+  vec2(.5, .2),
+  vec2(.5, -.2),
+  vec2(-.5, -.2),
+]
 
 
 export class Car extends Box2dObject {
@@ -94,9 +102,17 @@ export class Car extends Box2dObject {
   wheels: EngineObject[];
   wheelEffects: ParticleEmitter[] = []
   guns: Gun[] = []
-  engineSound: SoundInstance
+  engineSound?: SoundInstance
   life = 100
   maxLife = 100
+  tailSegments = [] as TailSegment[]
+
+  detachGear() {
+    this.tailSegments.forEach(element => {
+      element.destroy()
+    });
+    this.tailSegments = []
+  }
 
   render(): void {
     super.render();
@@ -106,16 +122,17 @@ export class Car extends Box2dObject {
     }
   }
 
-  constructor(pos: Vector2) {
+  trails: TrailMaker[] = []
+
+  constructor(pos: Vector2, gear?: string) {
 
     super(pos, vec2(1, 2), tile2(23));
     this.renderOrder = 1
 
 
-    // Play engine sound (loop)
-    this.engineSound = sounds.engineSound.playMusic(0.5, true) as SoundInstance;
+    if (!document.hidden)
 
-    this.addBox(vec2(.8, 2), vec2(), 0, 40, 0, .9);
+      this.addBox(vec2(.8, 2), vec2(), 0, 40, 0, .9);
 
     this.setAngularDamping(50)
 
@@ -124,7 +141,8 @@ export class Car extends Box2dObject {
 
     barrel = undefined;
 
-    carGear[gear](this)
+    if (gear)
+      (carGear as any)[gear](this)
 
     this.lights = [
       vec2(.27, .65),
@@ -147,51 +165,48 @@ export class Car extends Box2dObject {
     this.emissive = .3;
 
     this.wheels = [
-      vec2(.35, .35),
-      vec2(-.35, .35),
-      vec2(.35, -.35),
-      vec2(-.35, -.35),
+      vec2(.4, .4),
+      vec2(-.4, .4),
+      vec2(.4, -.4),
+      vec2(-.4, -.4),
     ].map((p, i) => {
-      let wheel = new EngineObject(vec2(), vec2());
+      let wheel = new EngineObject(vec2(), vec2(.5, .5), tile1(2));
       wheel.castShadow = false;
       this.addChild(wheel, p);
-      new TrailMaker(wheel, .2, rgb(0, 0, 0, .2));
-      if (i >= 2 && false) {
-        let effect = particleEffect('trail', vec2(), {
-          scale: 2,
-          hue: -.1,
-          saturation: 2,
-          speed: 0,
-          velocityInheritance: .2,
-          trailScale: 1
-        }) as ParticleEmitter;
-        effect.renderOrder = -1;
-        effect.emissive = 1;
-        this.wheelEffects.push(effect);
-        wheel.addChild(effect)
-      }
+      this.trails.push(new TrailMaker(wheel, .2, rgb(0, 0, 0, .2)));
       return wheel
     })
 
 
-    this.guns = [
-      //{ pos: vec2(-.5, -.2), ...guns.grenade },
-      //{ pos: vec2(.5, .2), ...guns.laser },
-      //{ pos: vec2(.5, -.2), ...guns.uzi },
-    ].map((p, i) => {
-      let q = { ...p } as any;
-      delete q.pos;
-      let gun = new Gun(this, q);
-      this.addChild(gun, p.pos);
-      gun.localAngle = vec2(p.pos.x, 0).angle();
-      return gun
-    })
+    this.mountGun(makeGun("shock"), 0);
 
+  }
 
-    /*let joint = new Box2dFrictionJoint(groundObject, this)
-    joint.setMaxForce(20);
-    joint.setMaxTorque(20);*/
+  unmountGun(slot: number) {
+    if (this.guns[slot]) {
+      this.removeChild(this.guns[slot])
+      this.guns[slot].destroy()
+      delete this.guns[slot];
+    }
+  }
 
+  mountGun(gunParams: WeaponParams, slot: number) {
+    if (gunParams.name && gunParams.name in carGear) {
+      debugger
+      car.detachGear();
+      (carGear as any)[gunParams.name](car);
+      return;
+    }
+
+    this.unmountGun(slot)
+    
+    let point = gunMountPoints[slot].copy();
+    let q = { pos: point, ...gunParams } as any;
+    let gun = new Gun(this, q);
+    this.guns[slot] = gun;
+    gun.maxAngle = .3
+    this.addChild(gun, point, vec2(point.x, 0).angle());
+    return gun
   }
 
   frame = 0
@@ -204,19 +219,23 @@ export class Car extends Box2dObject {
 
 
   update() {
-    if (gameOver)
+    if (scenario?.gameOver)
       return
 
     this.frame++;
 
     if (this.life < this.maxLife) {
-      this.life = Math.min(this.maxLife, this.life + this.maxLife/1e4)
+      this.life = Math.min(this.maxLife, this.life + this.maxLife / 1e4)
     }
 
     let forwardInput = keyDirection().y,
       turnInput = keyDirection().x,
       brakes = keyIsDown("Space"),
       turbo = keyIsDown("ShiftLeft");
+
+    this.trails.forEach(tr => {
+      tr.color = rgb(0, 0, 0, brakes ? .5 : .2)
+    })
 
     const vel = this.getLinearVelocity(),
       speed = vel.length();
@@ -236,7 +255,7 @@ export class Car extends Box2dObject {
     }*/
 
     if (barrel && rand() < .2) {
-      new FireTrap(barrel.pos)
+      new FireTrap(barrel.pos, 1, 3)
     }
 
     turbo = false;
@@ -248,8 +267,12 @@ export class Car extends Box2dObject {
     let forwardComponent = forwardAngle.scale(vel.dot(forwardAngle));
     let sidewayComponent = rightAngle.scale(vel.dot(rightAngle));
 
-    //let directionalDampening = brakes ? [.5, .05] : [.1, 1]
-    let directionalDampening = brakes ? [1, 1] : [.1, .5]
+    this.wheels.slice(0, 2).forEach(w => {
+      w.localAngle = lerp(w.localAngle, Math.sign(turnInput) * .5, .3);
+    })
+
+    let directionalDampening = brakes ? [.3, .1] : [.1, 1]
+    //let directionalDampening = brakes ? [1, 1] : [.1, .5]
 
     this.applyAcceleration(forwardComponent.scale(-directionalDampening[0] * .2))
     this.applyAcceleration(sidewayComponent.scale(-directionalDampening[1] * .2))
@@ -258,52 +281,26 @@ export class Car extends Box2dObject {
 
     //this.applyAngularImpulse(turnInput * vel.length() * .06)
 
-    this.applyAcceleration(rightAngle.scale(turnInput * (speed ** .5) * .4 * (forwardInput < 0 ? -1 : 1)), this.localToWorld(vec2(0, .35)))
+    this.applyAcceleration(
+      rightAngle.scale(turnInput * (speed ** .5) * .4 * (forwardInput < 0 ? -1 : 1)),
+      this.localToWorld(vec2(0, .5)))
 
     //this.applyAngularAcceleration(turnInput * (speed ** .5) * .5)
 
     //let camPos = this.pos.add(this.getLinearVelocity().scale(.4));
-    let camPos = this.pos;
+    //let camPos = this.pos;
     setCameraScale(32)
 
     cameraPos.setFrom(this.pos)
 
-    this.engineSound.setRate(this.getLinearVelocity().length() / 20)
+    if (!document.hidden && !this.engineSound)
+      this.engineSound = sounds.engineSound.playMusic(0.5, true) as SoundInstance;
 
+    this.engineSound?.setRate(this.getLinearVelocity().length() / 20)
   }
 
   destroy(immediate?: boolean): void {
     super.destroy(immediate)
-    this.engineSound.stop()
-  }
-}
-
-class FireTrap extends EngineObject {
-  scale = 1
-  effect:ParticleEmitter
-  spot:EngineObject
-  constructor(pos: Vector2) {
-    super(pos, vec2())
-    let e = particleEffect("fire", vec2(), { scale: 3, emitTime: 10, colorStartB: RED }) as ParticleEmitter;
-    e.emissive = 1;
-    this.effect = e;
-    this.addChild(e)
-    this.spot = new EngineObject(this.pos, vec2(1), tile1(27))
-    this.addChild(this.spot)
-    this.spot.castShadow = false;
-    let light = new Light(vec2(), 4, rgb(1, 1, 1), 4);
-    this.addChild(light)
-  }
-  update(): void {
-    this.scale += .005
-    this.effect.scale = this.scale * 3;
-
-    if (this.getAliveTime() > 5)
-      this.destroy()
-    engineObjectsCallback(this.pos, 3 * this.scale, (o: EngineObject) => {
-      if (o instanceof Chort) {
-        o.hit(this.pos, 1, true)
-      }
-    })
+    this.engineSound?.stop()
   }
 }

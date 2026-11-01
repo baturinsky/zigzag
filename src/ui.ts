@@ -1,10 +1,12 @@
-import { UIButton, vec2, UIObject, BLACK, CLEAR_BLACK, UISystemPlugin, uiSystem, Sound, setCanvasClearColor, hsl, UIText, drawCircle, RED, mainCanvasSize, WHITE, setPaused, setSoundEnable, setSoundVolume, GREEN, rgb, UILayout } from "littlejsengine";
-import { career, gameScene, startLevel } from "./main";
-import { loop } from "./util";
+import { UIButton, vec2, UIObject, BLACK, CLEAR_BLACK, UISystemPlugin, uiSystem, Sound, setCanvasClearColor, hsl, UIText, drawCircle, RED, mainCanvasSize, WHITE, setPaused, setSoundEnable, setSoundVolume, GREEN, rgb, UILayout, UITile } from "littlejsengine";
+import { car, career, gameScene, scenario, startLevel } from "./main";
+import { cap1, loop } from "./util";
 import { carGear } from "./car";
 import { config } from "./config";
+import { WeaponParams, makeGun } from "./guns";
+import { tile1 } from "./engine";
 
-export let uiRoot: UIObject, uiMenu: UIObject, uiInfo: UIText, uiGameOver: UIObject, buttonToggle: UIObject;
+export let uiRoot: UIObject, uiMainMenu: UIObject, uiInfo: UIText, uiGameOver: UIObject, buttonToggle: UIObject, uiPickup: UIObject | undefined;
 
 function addButtonToggle() {
   buttonToggle = new UIButton(vec2(20, 20), vec2(40, 40));
@@ -21,12 +23,12 @@ function addButtonToggle() {
   buttonToggle.onClick = toggleMenu
 }
 
-function toggleMenu() {
-  uiMenu.visible = !uiMenu.visible
-  if (uiMenu.visible)
+export function toggleMenu() {
+  uiMainMenu.visible = !uiMainMenu.visible
+  if (uiMainMenu.visible)
     uiGameOver.visible = false;
-  setPaused(uiMenu.visible)
-  setSoundVolume(uiMenu.visible ? 0 : .5)
+  setPaused(uiMainMenu.visible)
+  setSoundVolume(uiMainMenu.visible ? 0 : config.defaultVolume)
 }
 
 export let gameOverText: UIText
@@ -37,24 +39,82 @@ export function initGameOverText() {
   uiGameOver.addChild(gameOverText)
   let button = new UIButton(vec2(0, 100), vec2(100, 50), "OK")
   button.onClick = () => {
-    toggleMenu()
+    scenario.onGameOverExit()    
   }
   uiGameOver.addChild(button)
   uiGameOver.visible = false;
 }
 
+export function gunTitle(gun?: {name?:string, level?:number}) {
+  return gun ? `${cap1(gun.name ?? "?")} ${gun.level}` : "-"
+}
+
+export let uiWarn:UIText;
+
+export function initWarningText(){
+  if(uiWarn)
+    return
+  uiWarn = new UIText(vec2(0,50), vec2(300,30), "")
+  uiWarn.anchor = vec2(0,-1);
+  uiWarn.textColor = WHITE;
+  uiWarn.textHeight = 40;
+}
+
+export function showPickupText(name: string, level: number) {
+  let gun = makeGun(name, level);
+  setPaused(true)
+  setSoundVolume(0)
+  if (uiPickup)
+    uiPickup.destroy()
+  uiPickup = new UIObject(vec2(), vec2(600, 400));
+  let gunText = new UIText(vec2(0, 30), vec2(500, 50), "You picked: " + gunTitle(gun))
+  uiPickup.addChild(gunText)
+  gunText.anchor = vec2(0, -1)
+  loop(5, i => {
+    if (((i == 4) != !!gun.back) && i > 0)
+      return;
+    let equipped = car.guns[i - 1]
+
+    let weaponPos = [[0,0], [1,0], [1,1], [0,1]]
+
+    let button = new UIButton(
+      vec2(weaponPos[i][0] * 300 - 150 + (i == 4 ? 150 : 0), 
+      weaponPos[i][1] * 80 - 40 + (i == 4 ? 25 : 0)), vec2(i == 4 ? 400 : 250, 70), i == 0 ? "Discard" :
+      equipped ? "Replace\n" + gunTitle(equipped) : "Equip")
+    button.textHeight = 32
+    uiPickup?.addChild(button)
+    let icon = new UITile(vec2(10), vec2(48), tile1(68+i))
+    icon.canBeHover = false;
+    icon.anchor = vec2(-1,-1);
+    button.addChild(icon)
+    
+    button.onClick = () => {
+      if (gun && (i > 0)) {
+        car.mountGun(gun, i - 1)
+      }
+      uiPickup?.destroy();
+      uiPickup = undefined
+      setPaused(false)
+      setSoundVolume(config.defaultVolume)
+    }
+  })
+
+}
+
+
+
 
 export function updateMenu() {
-  if (uiMenu) {
-    uiMenu.destroy()
+  if (uiMainMenu) {
+    uiMainMenu.destroy()
   }
 
-  uiMenu = new UIObject(vec2(), vec2(1000, 600));
-  uiMenu.visible = false
+  uiMainMenu = new UIObject(vec2(), vec2(1000, 600));
+  uiMainMenu.visible = false
 
-  let layout = new UILayout(vec2(300,100), Object.keys(carGear).length + 1, 20, 10, true);  
-  uiMenu.addChild(layout)
-  layout.anchor = vec2(0,0)
+  let layout = new UILayout(vec2(300, 100), Object.keys(carGear).length + 1, 20, 10, true);
+  uiMainMenu.addChild(layout)
+  layout.anchor = vec2(0, 0)
 
 
   layout.addChild(new UIObject())
@@ -65,7 +125,6 @@ export function updateMenu() {
     layout.addChild(text)
   })
 
-
   loop(config.levels.length, level => {
     let text = new UIText(vec2(), vec2(110, 35), `Night ${level + 1}`, "center");
     text.anchor = vec2(-1, -1);
@@ -74,7 +133,7 @@ export function updateMenu() {
     Object.keys(carGear).forEach((gear, i) => {
       let available = i <= career.latestLevel + 1 && level <= career.latestLevel + 1;
 
-      if (!available){
+      if (!available) {
         layout.addChild(new UIObject())
         return
       }
@@ -110,18 +169,22 @@ export function initUI() {
   uiSystem.defaultShadowColor = BLACK;
   setCanvasClearColor(hsl(0, 0, .8))
 
+  //setTimeout(() => { showPickupText("bomb", 5) }, 100);
+
+
+
+  initWarningText()
   initGameOverText()
 
-  updateMenu()
-  //  uiMenu.visible = false;
+  if (config.survivorMode) {
 
-  addButtonToggle()
-
-  uiRoot = new UIObject;
-  uiRoot.anchor = vec2(0, -1);
+  } else {
+    updateMenu()
+    addButtonToggle()
+  }
 
   uiInfo = new UIText(vec2(10, 100), vec2(200, 200),
-    "", "left");
+    "", "center");
   uiInfo.anchor = vec2(-1, -1);
   uiInfo.textColor = WHITE;
   uiInfo.textLineWidth = 3;

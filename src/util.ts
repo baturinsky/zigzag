@@ -14,12 +14,12 @@ export const
     let r = amf.indexOf(Math.min(...amf))
     return r;
   },
-  min = <T>(a: T[]|Iterable<T>, f: (v: T) => number) => {
+  min = <T>(a: T[] | Iterable<T>, f: (v: T) => number | undefined) => {
     let v = Number.POSITIVE_INFINITY;
     let b: T | undefined = undefined;
-    for(let w of a){
+    for (let w of a) {
       let c = f(w)
-      if(c<v){
+      if ((c != undefined) && (c < v)) {
         v = c;
         b = w
       }
@@ -118,7 +118,7 @@ export const
   mod = (n: number, m: number) => ((n % m) + m) % m
 
 
-;
+  ;
 
 
 
