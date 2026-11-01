@@ -3,18 +3,16 @@ import { ram, TemporaryLight, tile1, tile2 } from "./engine";
 import { Gun, WeaponParams, weapons, makeGun, FireTrap } from "./guns";
 import { Mortal } from "./mortal";
 import { TrailMaker } from "./trailMaker";
-import { loop } from "./util";
+import { damageLevelMultiplier, loop } from "./util";
 import { Chort } from "./chort";
 import { sounds } from "./sound";
 import { config } from "./config";
 import { car, scenario } from "./main";
 
-let barrel: TailSegment | undefined;
-
 export const carGear = {
   plough: (car: Car) => {
-    let chain = new TailSegment(vec2(0, -1), car, tile2(22), vec2(1, 2), vec2(.3, 2), 3);
-    let rake = new TailSegment(vec2(0, -2), chain, tile(vec2(0, 4), vec2(70, 16), 0, 1),
+    let chain = new TailSegment(car, vec2(0, -1), car, tile2(22), vec2(1, 2), vec2(.3, 2), 3);
+    let rake = new TailSegment(car, vec2(0, -2), chain, tile(vec2(0, 4), vec2(70, 16), 0, 1),
       vec2(8, 1), vec2(8, .2), 3)
     loop(16, i => {
       let trail = new TrailMaker(rake, .2, rgb(0, 0, 0, .2));
@@ -24,24 +22,24 @@ export const carGear = {
 
   chain: (car: Car) => {
     let chainLink: Box2dObject = car;
-    loop(5, i => {
-      chainLink = new TailSegment(vec2(0, -.7 - 1.9 * i), chainLink, tile2(22), vec2(1, 2), vec2(.3, 2), 3)
+    loop(4, i => {
+      chainLink = new TailSegment(car, vec2(0, -.7 - 1.9 * i), chainLink, tile2(22), vec2(1, 2), vec2(.3, 2), 3)
       let trail = new TrailMaker(chainLink, .2, rgb(0, 0, 0, .2));
     })
   },
 
   barrel: (car: Car) => {
-    let chain = new TailSegment(vec2(0, -.7), car, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
-    chain = new TailSegment(vec2(0, -2.7), chain, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
-    barrel = new TailSegment(vec2(0, -4), chain, tile1(42), vec2(2, 2), vec2(2, 2), 3)
-    barrel.renderOrder = 1
+    let chain = new TailSegment(car, vec2(0, -.7), car, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
+    chain = new TailSegment(car, vec2(0, -2.7), chain, tile2(22), vec2(1, 2), vec2(.3, 2), .5, undefined, 1)
+    car.barrel = new TailSegment(car, vec2(0, -4), chain, tile1(42), vec2(2, 2), vec2(2, 2), 3)
+    car.barrel.renderOrder = 1
   },
 
   spear: (car: Car) => {
     let l = 3;
     let connectTo: Box2dObject = car;
     loop(3, i => {
-      connectTo = new TailSegment(vec2(0, .9 + 1.9 * i), connectTo, tile2(i == l - 1 ? 25 : 24), vec2(1, 2),
+      connectTo = new TailSegment(car, vec2(0, .9 + 1.9 * i), connectTo, tile2(i == l - 1 ? 25 : 24), vec2(1, 2),
         i == l - 1 ? vec2(1, 2) : vec2(.3, 2), .1, vec2(0, 1), .2)
       connectTo.setMass(.1)
       connectTo.setLinearDamping(0);
@@ -57,22 +55,31 @@ export const carGear = {
   },
 
   ram: (car: Car) => {
-    car.maxLife = config.carLife * 3;
-    car.life = car.maxLife
-    car.setAngularDamping(20)
+    let rake = new TailSegment(car, vec2(0, .9), car, tile(vec2(0, 4), vec2(70, 16), 0, 1),
+      vec2(2, 1), vec2(2, .2), 3, vec2(0, .1), 0)
+    loop(4, i => {
+      let trail = new TrailMaker(rake, .2, rgb(0, 0, 0, .2));
+      trail.localPos = vec2(i * .5 - .75, .1);
+    })
   },
 
 
 }
 
+export function isCarGear(name: string): name is keyof typeof carGear {
+  return Object.prototype.hasOwnProperty.call(carGear, name)
+}
+
 export class TailSegment extends Box2dObject {
-  damageMultiplier = 1
+  damageMultiplier = .5
   joint: Box2dRevoluteJoint
-  constructor(mountPoint: Vector2, connectTo: Box2dObject, tile: TileInfo, spriteSize: Vector2, size: Vector2, density: number, partCenter = vec2(0, -1), limit = .3) {
-    super(mountPoint.add(partCenter), spriteSize, tile);
+  constructor(car: Car, mountPoint: Vector2, connectTo: Box2dObject, tile: TileInfo, spriteSize: Vector2, size: Vector2, density: number, partCenter = vec2(0, -1), limit = .3) {
+    super(car.localToWorld(mountPoint.add(partCenter)), spriteSize, tile, car.angle);
     this.addBox(size, vec2(), 0, 10, density);
     this.setLinearDamping(2)
-    let joint = new Box2dRevoluteJoint(connectTo, this, mountPoint);
+    this.setLinearVelocity(car.getVelocityAtPoint(this.pos))
+    this.setAngularVelocity(car.getAngularVelocity())
+    let joint = new Box2dRevoluteJoint(connectTo, this, car.localToWorld(mountPoint));
     joint.enableLimit();
     joint.setLimits(-limit, limit);
     this.joint = joint
@@ -84,7 +91,7 @@ export class TailSegment extends Box2dObject {
   }
 
   beginContact(otherObject: Box2dObject, fixture?: any, otherFixture?: any, impactSpeed?: number) {
-    ram(this, otherObject, (impactSpeed ?? 0) * this.damageMultiplier)
+    ram(this, otherObject, (impactSpeed ?? 0) * this.damageMultiplier * damageLevelMultiplier(car.gearLevel ?? 1))
   }
 
 }
@@ -106,12 +113,25 @@ export class Car extends Box2dObject {
   life = 100
   maxLife = 100
   tailSegments = [] as TailSegment[]
+  gearName?: keyof typeof carGear
+  gearLevel?: number
+  barrel?: TailSegment
+  ramPreviousMaxLife?: number
 
   detachGear() {
     this.tailSegments.forEach(element => {
       element.destroy()
     });
     this.tailSegments = []
+    this.gearName = undefined
+    this.gearLevel = undefined
+    this.barrel = undefined
+    if (this.ramPreviousMaxLife !== undefined) {
+      this.maxLife = this.ramPreviousMaxLife
+      this.life = Math.min(this.life, this.maxLife)
+      this.ramPreviousMaxLife = undefined
+      this.setAngularDamping(50)
+    }
   }
 
   render(): void {
@@ -139,10 +159,8 @@ export class Car extends Box2dObject {
     let mainLight = new Light(vec2(), 32, rgb(.3, .3, .1));
     this.addChild(mainLight);
 
-    barrel = undefined;
-
-    if (gear)
-      (carGear as any)[gear](this)
+    if (gear && isCarGear(gear))
+      this.mountGear(gear)
 
     this.lights = [
       vec2(.27, .65),
@@ -178,7 +196,7 @@ export class Car extends Box2dObject {
     })
 
 
-    this.mountGun(makeGun("shock"), 0);
+    this.mountGun(makeGun("uzi"), 0);
 
   }
 
@@ -190,11 +208,18 @@ export class Car extends Box2dObject {
     }
   }
 
+  mountGear(name: keyof typeof carGear, level = 1) {
+    this.detachGear();
+    carGear[name](this);
+    for (let segment of this.tailSegments)
+      segment.damageMultiplier *= damageLevelMultiplier(level)
+    this.gearName = name
+    this.gearLevel = level
+  }
+
   mountGun(gunParams: WeaponParams, slot: number) {
-    if (gunParams.name && gunParams.name in carGear) {
-      debugger
-      car.detachGear();
-      (carGear as any)[gunParams.name](car);
+    if (gunParams.name && isCarGear(gunParams.name)) {
+      this.mountGear(gunParams.name, gunParams.level);
       return;
     }
 
@@ -254,8 +279,8 @@ export class Car extends Box2dObject {
       turnInput *= -1;
     }*/
 
-    if (barrel && rand() < .2) {
-      new FireTrap(barrel.pos, 1, 3)
+    if (this.barrel && rand() < .2) {
+      new FireTrap(this.barrel.pos, damageLevelMultiplier(this.gearLevel ?? 1), 3)
     }
 
     turbo = false;

@@ -1,4 +1,4 @@
-import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED, UISystemPlugin, uiSystem, Sound, canvasClearColor, UIObject, UIText, CLEAR_BLACK, UIButton, drawCircle, randInCircle, CYAN, setScene, loadAtlas, loadSprite, Box2dPlugin, Scene, Timer, readSaveData, setSoundVolume, writeSaveData, TileLayer, randInt, Light, audioContext, setSoundEnable, soundVolume, Vector2 } from 'littlejsengine';
+import { engineInit, drawText, drawTile, tile, vec2, setTileDefaultPadding, box2dInit, Box2dObject, Box2dWheelJoint, cameraPos, clamp, keyDirection, mouseIsDown, Color, BLUE, rand, Box2dFrictionJoint, Box2dStaticObject, Box2dJoint, PI, cameraScale, setCameraScale, textureInfos, setCanvasClearColor, hsl, rgb, lightSystem, LightSystemPlugin, mainCanvasSize, getCanvasPixelRatio, drawRect, BLACK, ParallaxLayer, keyIsDown, PostProcessPlugin, postProcessTiltShift, particleEffect, ParticleEmitter, postProcessVignette, postProcessEffects, postProcessOutline, RED, UISystemPlugin, uiSystem, Sound, canvasClearColor, UIObject, UIText, CLEAR_BLACK, UIButton, drawCircle, randInCircle, CYAN, setScene, loadAtlas, loadSprite, Box2dPlugin, Scene, Timer, readSaveData, setSoundVolume, writeSaveData, TileLayer, randInt, Light, audioContext, setSoundEnable, soundVolume, Vector2, canvasMaxSize } from 'littlejsengine';
 
 
 export let bloodLayer: DecalLayer
@@ -6,7 +6,7 @@ export let bloodLayer: DecalLayer
 import { ram, tile1, tile2 } from './engine';
 import { Car, carGear, TailSegment } from './car';
 import { Chort } from './chort';
-import { initUI, uiInfo, uiMainMenu, uiGameOver, updateMenu, gameOverText, buttonToggle } from './ui';
+import { initUI, uiInfo, uiMainMenu, uiGameOver, uiPickup, updateMenu, gameOverText, buttonToggle, updateEquipmentUI } from './ui';
 import { loop, scale } from './util';
 import { DecalLayer } from '../decalLayer';
 import { addSplat } from './splat';
@@ -15,10 +15,38 @@ import { TrailMaker } from './trailMaker';
 import { Scenario, SurvivalScenario, UnchortedScenario } from './scenario';
 import { Gun } from './guns';
 
+
+export const radarSize = 200;
+export function radarCenter() {
+  return mainCanvasSize.subtract(vec2(radarSize / 2 + 40));
+}
+
 //const saveName = "chort crusher";
-export const saveName = "chort survivor";
+export const saveName = "chort survivor", settingsSaveName = "chort survivor settings";
 
 export let scenario: Scenario;
+
+const defaultSettings = { volume: config.defaultVolume };
+export let settings = { ...defaultSettings };
+
+function loadSettings() {
+  const saved = readSaveData<{ volume: unknown }>(settingsSaveName, defaultSettings);
+  const volume = typeof saved.volume === 'number' && Number.isFinite(saved.volume)
+    ? Math.max(0, Math.min(1, saved.volume)) : defaultSettings.volume;
+  settings = { ...saved, volume };
+}
+
+export function updateSoundVolume() {
+  setSoundVolume(document.hidden || uiMainMenu?.visible || uiPickup ? 0 : settings.volume);
+}
+
+export function setVolume(volume: number) {
+  if (!Number.isFinite(volume))
+    return;
+  settings.volume = Math.max(0, Math.min(1, volume));
+  writeSaveData(settingsSaveName, settings);
+  updateSoundVolume();
+}
 
 export function saveCareer() {
   writeSaveData(saveName, career)
@@ -63,8 +91,11 @@ export function startLevel(_level: number, _gear: string) {
   bloodLayer.castShadow = false
 }
 
-  
+
 export function startSurvival() {
+  gameFrame = 0;
+  shots = 0;
+  ammoUsed = 0;
   setScene(gameScene);
   scenario = new SurvivalScenario();
   bloodLayer = new DecalLayer(vec2(config.decalLayerSize), 0)
@@ -113,6 +144,7 @@ export const gameScene: Scene = {
 
     gameFrame++;
     uiInfo.text = scenario.info();
+    updateEquipmentUI();
 
   },
 
@@ -122,14 +154,13 @@ export const gameScene: Scene = {
       // called after objects are rendered
       // draw effects or hud that appear above all objects
 
+      const center = radarCenter();
       scenario.renderRadar()
 
-      const radarSize = 200;
-      const pos = vec2(mainCanvasSize.x - radarSize / 2 - 20, radarSize / 2 + 20);
-      drawCircle(pos, radarSize, rgb(0, 0, 0, .1), 1, rgb(1, 1, 1, 1), false, true);
-      drawCircle(pos, radarSize / 2, rgb(0, 0, 0, 0), 1, rgb(1, 1, 1, .5), false, true);
-      drawRect(pos, vec2(radarSize, 1), rgb(1, 1, 1, .5), 0, false, true)
-      drawRect(pos, vec2(1, radarSize), rgb(1, 1, 1, .5), 0, false, true)
+      drawCircle(center, radarSize, rgb(0, 0, 0, .1), 1, rgb(1, 1, 1, 1), false, true);
+      drawCircle(center, radarSize / 2, rgb(0, 0, 0, 0), 1, rgb(1, 1, 1, .5), false, true);
+      drawRect(center, vec2(radarSize, 1), rgb(1, 1, 1, .5), 0, false, true)
+      drawRect(center, vec2(1, radarSize), rgb(1, 1, 1, .5), 0, false, true)
 
       for (let c of [...scenario.chorts, ...scenario.militias]) {
         if (c.life > 0) {
@@ -151,11 +182,9 @@ export const gameScene: Scene = {
 }
 
 export function toRadarPos(p: Vector2) {
-  const radarSize = 200;
-  const center = vec2(mainCanvasSize.x - radarSize / 2 - 20, radarSize / 2 + 20);
   p = p.subtract(cameraPos);
   p.y = -p.y;
-  p = center.add(p.scale(.2))
+  p = radarCenter().add(p.scale(.2))
   return p;
 }
 
@@ -164,17 +193,18 @@ function gameInit() {
   lightSystem.shadows = true;
   new UISystemPlugin();
   career = readSaveData(saveName, defaultCareer);
+  loadSettings();
 
   initUI()
   setCameraScale(16)
   textureInfos[0].setWrap(true);
   setCanvasClearColor(rgb(.2, .4, .2))
-  setSoundVolume(.5);
 
   new PostProcessPlugin(postProcessEffects(postProcessOutline(RED)));
 
   if (!config.survivorMode)
     uiMainMenu.visible = true
+  updateSoundVolume();
 
   startSurvival()
   //startLevel(0, Object.keys(carGear)[0])
@@ -188,12 +218,4 @@ async function main() {
 
 main()
 
-let savedVolume = soundVolume;
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    savedVolume = soundVolume;
-    setSoundVolume(0);
-  }
-  else
-    setSoundVolume(savedVolume);
-});
+document.addEventListener('visibilitychange', updateSoundVolume);

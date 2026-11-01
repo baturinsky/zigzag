@@ -5,6 +5,7 @@ export const config = {
   decalLayerSize: 1024,
   carLife: 50,
   defaultVolume: .5,
+  pickipActivationDelay: 3,
 
   survivorMode: true,
 

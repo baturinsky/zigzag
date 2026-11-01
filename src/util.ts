@@ -5,6 +5,7 @@ export let seed = 1;
 declare const DEBUG: boolean
 
 export const
+  damageLevelMultiplier = (level: number) => 1 + .2 * level,
   //rng = (n = 1e9) => ~~(Math.sin(++seed) ** 2 * 1e9 % n) / (n == 1e9 ? n : 1),
   setSeed = (n: number) => { seed = n },
   randomElement = <T>(a: T[], gen = rng) => a[gen(a.length)],

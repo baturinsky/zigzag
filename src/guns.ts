@@ -1,6 +1,6 @@
 import { box2d, Box2dObject, Box2dRaycastResult, Color, drawLine, EngineObject, engineObjectsCallback, engineObjectsRaycast, gravity, hsl, Light, particleEffect, ParticleEmitter, PI, rand, randInCircle, RED, rgb, Sound, TileInfo, Timer, vec2, Vector2 } from "littlejsengine";
 import { findNearest, TemporaryLight, tile1 } from "./engine";
-import { loop, min } from "./util";
+import { damageLevelMultiplier, loop, min } from "./util";
 import { Mortal } from "./mortal";
 import { Chort } from "./chort";
 import { sounds } from "./sound";
@@ -14,7 +14,7 @@ export const weapons: { [name: string]: WeaponParams } = {
   magnum: { rof: 2, damage: 100 },
   uzi: { rof: 20, damage: 6 },
   shotgun: { damage: 5, spread: 50, burst: 24, rof: 2 },
-  grenade: { rof: 1, damage: 10, aoe: 5, missileDamping: 10, missileSprite: 44 },
+  grenade: { rof: 1, damage: 10, aoe: 7, missileDamping: 10, missileSprite: 44 },
   bomb: { rof: .2, damage: 10, aoe: 15, missileDamping: 10, missileSprite: 44, missileSize: 2 },
   laser: { rof: 10, damage: 4, beam: .2, spread: 0, shotColor: rgb(1, 0, 0), shootSound: sounds.laser },
   railgun: { rof: 1, damage: 100, beam: .2, spread: 0, shotColor: rgb(1, 1, 1), shootSound: sounds.laser },
@@ -23,7 +23,7 @@ export const weapons: { [name: string]: WeaponParams } = {
 }
 
 export function makeGun(name: keyof typeof weapons, level = 1) {
-  let damageMultiplier = 1 + .2 * level;
+  let damageMultiplier = damageLevelMultiplier(level);
   if (name in carGear) {
     return { name: name as string, back: true, level, damage: damageMultiplier }
   }

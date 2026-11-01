@@ -6,7 +6,7 @@ import { config, Level } from "./config";
 import { cap1, loop } from "./util";
 import { tile1, ram, findNearest } from "./engine";
 import { TrailMaker } from "./trailMaker";
-import { gameOverText, gunTitle, toggleMenu, uiGameOver, uiWarn, updateMenu } from "./ui";
+import { gameOverText, toggleMenu, uiGameOver, uiWarn, updateMenu } from "./ui";
 import { BonusPickup } from "./pickup";
 
 export class Scenario {
@@ -139,13 +139,6 @@ export class SurvivalScenario extends Scenario {
 Nexus: ${Math.ceil(this.nexusHealth)}%
 Wave: ${this.wave}
 Chorts: ${this.chorts.size}
-
-${loop(3, n => {
-      let gun = car.guns[n]
-      if (!gun)
-        return "-"
-      return gunTitle(gun)
-    }).join("\n")}
   `
   }
 
@@ -226,7 +219,6 @@ export class UnchortedScenario extends Scenario {
   info() {
     return `
     Night: ${this.levelNumber + 1}
-    Gear: ${this.gear}
     Wave: ${this.wave}/${this.level.waves}
 Until next wave: ${this.wave < this.level.waves ? (this.level.interval - ~~this.timer.get() % this.level.interval) + "s" : "-"}
     Chorts: ${this.chorts.size}
